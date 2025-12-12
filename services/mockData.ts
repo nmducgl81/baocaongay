@@ -1,0 +1,167 @@
+import { SalesRecord, User } from '../types';
+
+// Mock Users Hierarchy
+export const MOCK_USERS: User[] = [
+  { id: 'admin', username: 'admin', name: 'System Admin', role: 'ADMIN' },
+  { id: 'rsm1', username: 'rsm_hcm', name: 'NGUYỄN VĂN A (RSM)', role: 'RSM', parentId: 'admin' },
+  
+  // SMs under RSM1
+  { id: 'sm1', username: 'sm_east2', name: 'EAST 2 (SM)', role: 'SM', parentId: 'rsm1' },
+  { id: 'sm2', username: 'sm_west1', name: 'WEST 1 (SM)', role: 'SM', parentId: 'rsm1' },
+
+  // DSSs under SM1
+  { id: 'dss1', username: 'dss_qua', name: 'BÙI CÔNG QUẢ', role: 'DSS', parentId: 'sm1' },
+  { id: 'dss2', username: 'dss_nhung', name: 'LÊ THỊ NHUNG', role: 'DSS', parentId: 'sm1' },
+  { id: 'dss3', username: 'dss_nhi', name: 'HUỲNH KHANG NHI', role: 'DSS', parentId: 'sm1' },
+
+  // DSAs under DSS1 (Qua)
+  { id: 'dsa1', username: 'dsa_thien', dsaCode: 'DA014795', name: 'TRẦN MINH THIỆN', role: 'DSA', parentId: 'dss1' },
+  { id: 'dsa2', username: 'dsa_trang', dsaCode: 'DA013631', name: 'VÒNG ĐOAN TRANG', role: 'DSA', parentId: 'dss1' },
+  { id: 'dsa3', username: 'dsa_thuy', dsaCode: 'DA015535', name: 'TRƯƠNG THỊ THÙY TRANG', role: 'DSA', parentId: 'dss1' },
+
+  // DSAs under DSS2 (Nhung)
+  { id: 'dsa4', username: 'dsa_hue', dsaCode: 'DA012308', name: 'PHAN THỊ THANH HUẾ', role: 'DSA', parentId: 'dss2' },
+  
+  // DSAs under DSS3 (Nhi)
+  { id: 'dsa5', username: 'dsa_tien', dsaCode: 'DA012262', name: 'NGUYỄN THỊ BÍCH TIÊN', role: 'DSA', parentId: 'dss3' },
+];
+
+export const generateMockData = (): SalesRecord[] => {
+  return [
+    {
+      id: '1',
+      dsaCode: 'DA014795',
+      name: 'TRẦN MINH THIỆN',
+      dss: 'BÙI CÔNG QUẢ',
+      smName: 'EAST 2',
+      reportDate: '2025-12-11',
+      status: 'Đã báo cáo',
+      approvalStatus: 'Approved',
+      directApp: 1,
+      directLoan: 0,
+      directAppCRC: 2,
+      directLoanCRC: 1,
+      directVolume: 0,
+      directBanca: 0,
+      directRol: '0.0%',
+      onlineApp: 0,
+      onlineVolume: 0,
+      ctv: 5,
+      newCtv: 0,
+      flyers: 0,
+      dlk: 5,
+      newDlk: 0,
+      callsMonth: 200,
+      adSpend: 10000000,
+      refs: 10
+    },
+    {
+      id: '2',
+      dsaCode: 'DA013631',
+      name: 'VÒNG ĐOAN TRANG',
+      dss: 'BÙI CÔNG QUẢ',
+      smName: 'EAST 2',
+      reportDate: '2025-12-11',
+      status: 'Chưa báo cáo',
+      approvalStatus: 'Approved',
+      directApp: 0,
+      directLoan: 0,
+      directAppCRC: 0,
+      directLoanCRC: 0,
+      directVolume: 0,
+      directBanca: 0,
+      directRol: '0.0%',
+      onlineApp: 0,
+      onlineVolume: 0,
+      ctv: 0,
+      newCtv: 0,
+      flyers: 0,
+      dlk: 0,
+      newDlk: 0,
+      callsMonth: 0,
+      adSpend: 0,
+      refs: 0
+    },
+    {
+      id: '3',
+      dsaCode: 'DA015535',
+      name: 'TRƯƠNG THỊ THÙY TRANG',
+      dss: 'BÙI CÔNG QUẢ',
+      smName: 'EAST 2',
+      reportDate: '2025-12-11',
+      status: 'Đã báo cáo',
+      approvalStatus: 'Approved',
+      directApp: 1,
+      directLoan: 0,
+      directAppCRC: 1,
+      directLoanCRC: 1,
+      directVolume: 0,
+      directBanca: 0,
+      directRol: '0.0%',
+      onlineApp: 0,
+      onlineVolume: 2,
+      ctv: 7,
+      newCtv: 0,
+      flyers: 1000,
+      dlk: 5,
+      newDlk: 0,
+      callsMonth: 200,
+      adSpend: 1000000,
+      refs: 12
+    },
+    {
+      id: '4',
+      dsaCode: 'DA012262',
+      name: 'NGUYỄN THỊ BÍCH TIÊN',
+      dss: 'HUỲNH KHANG NHI',
+      smName: 'EAST 2',
+      reportDate: '2025-12-11',
+      status: 'Đã báo cáo',
+      approvalStatus: 'Pending', // Example of a pending approval
+      directApp: 6,
+      directLoan: 3,
+      directAppCRC: 5,
+      directLoanCRC: 2,
+      directVolume: 105000000,
+      directBanca: 1800000,
+      directRol: '1.7%',
+      onlineApp: 0,
+      onlineVolume: 0,
+      ctv: 10,
+      newCtv: 10,
+      flyers: 22000,
+      dlk: 10,
+      newDlk: 9,
+      callsMonth: 100,
+      adSpend: 0,
+      refs: 70
+    },
+    {
+      id: '5',
+      dsaCode: 'DA012308',
+      name: 'PHAN THỊ THANH HUẾ',
+      dss: 'LÊ THỊ NHUNG',
+      smName: 'EAST 2',
+      reportDate: '2025-12-11',
+      status: 'Đã báo cáo',
+      approvalStatus: 'Approved',
+      directApp: 2,
+      directLoan: 1,
+      directAppCRC: 3,
+      directLoanCRC: 0,
+      directVolume: 27000000,
+      directBanca: 600000,
+      directRol: '2.2%',
+      onlineApp: 1,
+      onlineVolume: 0,
+      ctv: 11,
+      newCtv: 9,
+      flyers: 2000000,
+      dlk: 11,
+      newDlk: 9,
+      callsMonth: 70,
+      adSpend: 200000,
+      refs: 9
+    }
+  ];
+};

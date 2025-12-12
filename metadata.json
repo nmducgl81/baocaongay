@@ -1,0 +1,7 @@
+{
+  "name": "DSA Sales Tracker",
+  "description": "A comprehensive dashboard for tracking daily sales activities, direct sales, and online metrics for sales staff.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
