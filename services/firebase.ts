@@ -1,6 +1,6 @@
 import firebase from "firebase/app";
-import "firebase/auth";
 import "firebase/firestore";
+import "firebase/auth";
 import "firebase/analytics";
 
 const firebaseConfig = {
@@ -14,21 +14,19 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
-export const db = app.firestore();
-export const auth = app.auth();
+const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
+export const db = firebase.firestore();
+export const auth = firebase.auth();
 
 // Initialize analytics (safe check)
-let analytics;
 try {
-  analytics = app.analytics();
+  firebase.analytics();
 } catch (e) {
-  console.log("Analytics not initialized in this environment.");
+  console.log("Analytics not supported in this environment.");
 }
 
 export const ensureAuth = async () => {
   try {
-    // Authenticate anonymously to access Firestore (assuming Rules allow auth users)
     await auth.signInAnonymously();
   } catch (error) {
     console.error("Firebase Anonymous Auth Error:", error);
