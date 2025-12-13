@@ -7,6 +7,7 @@ export interface User {
   role: Role;
   parentId?: string; // ID of the manager
   dsaCode?: string; // Only for DSA
+  avatar?: string; // Base64 string of the user's portrait
 }
 
 export interface SalesRecord {

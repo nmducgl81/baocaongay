@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SalesRecord, DashboardStats, User, ViewMode, AppScreen } from './types';
 import { generateMockData, MOCK_USERS } from './services/mockData';
-import { analyzeSalesData } from './services/geminiService';
 import { authService } from './services/authService';
 import { SalesTable } from './components/SalesTable';
 import { StatsCard } from './components/StatsCard';
@@ -10,13 +9,13 @@ import { Login } from './components/Login';
 import { DashboardCharts } from './components/DashboardCharts';
 import { DSADetail } from './components/DSADetail';
 import { UserManagement } from './components/UserManagement';
+import { ChatBot } from './components/ChatBot';
 
 import { 
   Users, 
   DollarSign, 
   FileText, 
   Plus, 
-  BrainCircuit, 
   Loader2,
   Calendar,
   LogOut,
@@ -27,26 +26,53 @@ import {
   Settings,
   CreditCard,
   Percent,
-  Briefcase
+  Briefcase,
+  Megaphone,
+  RefreshCw,
+  Filter,
+  Clock,
+  Trophy,
+  BellRing,
+  AlertTriangle
 } from 'lucide-react';
+
+const MOTIVATIONAL_QUOTES = [
+  "🎯 Thành công không phải là đích đến, mà là một hành trình của sự kiên trì!",
+  "🚀 Mỗi ngày cố gắng thêm 1% tốt hơn ngày hôm qua.",
+  "💪 Đừng mong đích đến sẽ thay đổi nếu bạn không thay đổi con đường.",
+  "🔥 Khó khăn hôm nay là sức mạnh của ngày mai. Keep pushing!",
+  "💎 Áp lực tạo nên kim cương. Hãy tỏa sáng theo cách của bạn!",
+  "🌟 Thái độ quyết định trình độ. Hãy làm việc bằng cả trái tim!",
+  "💰 Doanh số cao là phần thưởng cho những nỗ lực không mệt mỏi.",
+  "🏆 Người chiến thắng không bao giờ bỏ cuộc, người bỏ cuộc không bao giờ chiến thắng."
+];
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [allData, setAllData] = useState<SalesRecord[]>([]);
+  
+  // Initialize Users from LocalStorage or Mock Data
+  const [users, setUsers] = useState<User[]>(() => {
+    const savedUsers = localStorage.getItem('app_users');
+    return savedUsers ? JSON.parse(savedUsers) : MOCK_USERS;
+  });
+
+  // Initialize Sales Data from LocalStorage or Mock Data
+  const [allData, setAllData] = useState<SalesRecord[]>(() => {
+    const savedData = localStorage.getItem('sales_records');
+    return savedData ? JSON.parse(savedData) : [];
+  });
+
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<SalesRecord | null>(null);
-  
-  const [analysis, setAnalysis] = useState<string>('');
-  const [analyzing, setAnalyzing] = useState(false);
   
   // Navigation State
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDSA, setSelectedDSA] = useState<string | null>(null);
   
   // View/Filter State with LocalStorage Persistence
+  // CHANGE: Default to 'chart' as requested
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    return (localStorage.getItem('viewMode') as ViewMode) || 'table';
+    return (localStorage.getItem('viewMode') as ViewMode) || 'chart';
   });
 
   const [startDate, setStartDate] = useState<string>(() => {
@@ -60,6 +86,40 @@ const App: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>(() => {
     return localStorage.getItem('statusFilter') || 'all';
   });
+
+  // NEW FILTERS: SM and DSS
+  const [smFilter, setSmFilter] = useState<string>(() => {
+    return localStorage.getItem('smFilter') || 'all';
+  });
+  const [dssFilter, setDssFilter] = useState<string>(() => {
+    return localStorage.getItem('dssFilter') || 'all';
+  });
+
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const dataRef = useRef(allData);
+
+  // Random Quote State
+  const randomQuote = useMemo(() => {
+    const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    return MOTIVATIONAL_QUOTES[randomIndex];
+  }, []);
+
+  // Update ref when state changes (for interval to access latest state)
+  useEffect(() => {
+    dataRef.current = allData;
+  }, [allData]);
+
+  // Persist Users to LocalStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('app_users', JSON.stringify(users));
+  }, [users]);
+
+  // Persist Sales Records to LocalStorage whenever they change
+  useEffect(() => {
+    if (allData.length > 0) {
+      localStorage.setItem('sales_records', JSON.stringify(allData));
+    }
+  }, [allData]);
 
   // Persist state changes to localStorage
   useEffect(() => {
@@ -79,32 +139,184 @@ const App: React.FC = () => {
   }, [statusFilter]);
 
   useEffect(() => {
-    // Load initial mock data
-    setAllData(generateMockData());
+    localStorage.setItem('smFilter', smFilter);
+  }, [smFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('dssFilter', dssFilter);
+  }, [dssFilter]);
+
+  // Initial Data Load Logic
+  useEffect(() => {
+    // If no data in local storage, load mock data
+    if (allData.length === 0) {
+       const initialData = generateMockData();
+       setAllData(initialData);
+       localStorage.setItem('sales_records', JSON.stringify(initialData));
+    }
   }, []);
 
-  // Filter data based on user hierarchy, role, date range, and status
+  // --- REAL-TIME SYNC OPTIMIZATION ---
+  useEffect(() => {
+    const checkForUpdates = () => {
+      const savedData = localStorage.getItem('sales_records');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        if (JSON.stringify(parsedData) !== JSON.stringify(dataRef.current)) {
+          console.log("Detecting external data change, updating UI...");
+          setAllData(parsedData);
+          setLastUpdated(new Date());
+        }
+      }
+    };
+    const intervalId = setInterval(checkForUpdates, 15000);
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'sales_records') {
+        checkForUpdates();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // --- SYNC LOGIC: AUTO-UPDATE SALES RECORDS WHEN USERS CHANGE ---
+  useEffect(() => {
+    if (users.length === 0) return;
+
+    setAllData(currentData => {
+        const newData = [...currentData];
+        let hasChanges = false;
+        const today = new Date().toISOString().split('T')[0];
+
+        // Helper to find hierarchy names
+        const getHierarchy = (user: User) => {
+            let dss = '';
+            let smName = '';
+            if (user.parentId) {
+                const parent = users.find(u => u.id === user.parentId);
+                if (parent) {
+                    if (parent.role === 'DSS') {
+                        dss = parent.name;
+                        const sm = users.find(u => u.id === parent.parentId);
+                        if (sm) smName = sm.name;
+                    } else if (parent.role === 'SM') {
+                        smName = parent.name;
+                    }
+                }
+            }
+            return { dss, smName };
+        };
+
+        const dsaUsers = users.filter(u => u.role === 'DSA' && u.dsaCode);
+        
+        dsaUsers.forEach(user => {
+            if (!user.dsaCode) return;
+
+            const existingRecordIndex = newData.findIndex(r => r.dsaCode === user.dsaCode);
+            const { dss, smName } = getHierarchy(user);
+
+            if (existingRecordIndex === -1) {
+                newData.push({
+                    id: `auto-${user.id}-${Date.now()}`,
+                    dsaCode: user.dsaCode,
+                    name: user.name,
+                    dss: dss,
+                    smName: smName,
+                    reportDate: today,
+                    status: 'Chưa báo cáo',
+                    approvalStatus: 'Approved',
+                    directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
+                    directVolume: 0, directBanca: 0, directRol: '0.0%',
+                    onlineApp: 0, onlineVolume: 0,
+                    ctv: 0, newCtv: 0, flyers: 0, dlk: 0, newDlk: 0,
+                    callsMonth: 0, adSpend: 0, refs: 0
+                });
+                hasChanges = true;
+            } else {
+                const rec = newData[existingRecordIndex];
+                if (rec.dss !== dss || rec.smName !== smName || rec.name !== user.name) {
+                    newData[existingRecordIndex] = {
+                        ...rec,
+                        name: user.name,
+                        dss: dss,
+                        smName: smName
+                    };
+                    hasChanges = true;
+                }
+            }
+        });
+
+        return hasChanges ? newData : currentData;
+    });
+  }, [users]);
+
+  // Compute Available Options for SM and DSS based on Current User and selections
+  const { smOptions, dssOptions } = useMemo(() => {
+    if (!currentUser) return { smOptions: [], dssOptions: [] };
+
+    let availableSMs: User[] = [];
+    let availableDSSs: User[] = [];
+
+    if (currentUser.role === 'ADMIN') {
+        availableSMs = users.filter(u => u.role === 'SM');
+        availableDSSs = users.filter(u => u.role === 'DSS');
+    } else if (currentUser.role === 'RSM') {
+        availableSMs = users.filter(u => u.role === 'SM' && u.parentId === currentUser.id);
+        const smIds = availableSMs.map(sm => sm.id);
+        availableDSSs = users.filter(u => u.role === 'DSS' && smIds.includes(u.parentId || ''));
+    } else if (currentUser.role === 'SM') {
+        availableSMs = [currentUser];
+        availableDSSs = users.filter(u => u.role === 'DSS' && u.parentId === currentUser.id);
+    } else if (currentUser.role === 'DSS') {
+        availableDSSs = [currentUser];
+    }
+
+    if (smFilter !== 'all') {
+        const selectedSmUser = users.find(u => u.name === smFilter && u.role === 'SM');
+        if (selectedSmUser) {
+            availableDSSs = availableDSSs.filter(u => u.parentId === selectedSmUser.id);
+        }
+    }
+
+    return { 
+        smOptions: availableSMs.sort((a,b) => a.name.localeCompare(b.name)), 
+        dssOptions: availableDSSs.sort((a,b) => a.name.localeCompare(b.name)) 
+    };
+  }, [users, currentUser, smFilter]);
+
+  // Filter data
   const filteredData = useMemo(() => {
     if (!currentUser) return [];
     
-    // 1. Hierarchy Filter - PASS THE CURRENT USERS LIST
     const visibleDSAIds = authService.getVisibleDSAIds(currentUser, users);
     let data = allData.filter(record => visibleDSAIds.includes(record.dsaCode));
 
-    // 2. Date Range Filter
     data = data.filter(record => 
       record.reportDate >= startDate && record.reportDate <= endDate
     );
 
-    // 3. Status Filter
     if (statusFilter !== 'all') {
       data = data.filter(record => record.status === statusFilter);
     }
+    if (smFilter !== 'all') {
+        data = data.filter(record => record.smName === smFilter);
+    }
+    if (dssFilter !== 'all') {
+        data = data.filter(record => record.dss === dssFilter);
+    }
 
     return data;
-  }, [allData, currentUser, startDate, endDate, statusFilter, users]);
+  }, [allData, currentUser, startDate, endDate, statusFilter, smFilter, dssFilter, users]);
 
-  // Calculate statistics based on filtered data
+  const dateFilteredGlobalData = useMemo(() => {
+    return allData.filter(record => 
+        record.reportDate >= startDate && record.reportDate <= endDate
+    );
+  }, [allData, startDate, endDate]);
+
   const stats: DashboardStats = useMemo(() => {
     return filteredData.reduce(
       (acc, curr) => ({
@@ -112,27 +324,69 @@ const App: React.FC = () => {
         reportedCount: curr.status === 'Đã báo cáo' ? acc.reportedCount + 1 : acc.reportedCount,
         totalVolume: acc.totalVolume + curr.directVolume,
         totalApps: acc.totalApps + curr.directApp,
-        totalLoanCRC: acc.totalLoanCRC + (curr.directLoanCRC || 0), // Sum up Loan CRC
+        totalLoanCRC: acc.totalLoanCRC + (curr.directLoanCRC || 0), 
         totalBanca: acc.totalBanca + curr.directBanca,
       }),
       { totalRecords: 0, reportedCount: 0, totalVolume: 0, totalApps: 0, totalLoanCRC: 0, totalBanca: 0 }
     );
   }, [filteredData]);
 
+  // --- DSA RANKING & REPORTING STATUS LOGIC ---
+  const dsaInfo = useMemo(() => {
+    if (currentUser?.role !== 'DSA') return null;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const isReportedToday = allData.some(r => 
+        r.dsaCode === currentUser.dsaCode && 
+        r.reportDate === today && 
+        r.status === 'Đã báo cáo'
+    );
+
+    // Calculate Rank
+    // 1. Get all DSAs
+    const allDSAs = users.filter(u => u.role === 'DSA');
+    
+    // 2. Aggregate Volume for the current filtered date range (using filteredData)
+    // Note: Use dateFilteredGlobalData to compare against EVERYONE in the same timeframe
+    const volumeMap = new Map<string, number>();
+    allDSAs.forEach(u => u.dsaCode && volumeMap.set(u.dsaCode, 0)); // Init with 0
+
+    dateFilteredGlobalData.forEach(r => {
+        if (volumeMap.has(r.dsaCode)) {
+            volumeMap.set(r.dsaCode, volumeMap.get(r.dsaCode)! + r.directVolume);
+        }
+    });
+
+    // 3. Sort
+    const sortedDSAs = Array.from(volumeMap.entries()).sort((a, b) => b[1] - a[1]);
+    
+    // 4. Find Index
+    const myIndex = sortedDSAs.findIndex(item => item[0] === currentUser.dsaCode);
+    const myRank = myIndex !== -1 ? myIndex + 1 : sortedDSAs.length;
+    const totalDSAs = sortedDSAs.length;
+
+    return {
+        isReportedToday,
+        rank: myRank,
+        totalDSAs
+    };
+  }, [currentUser, allData, dateFilteredGlobalData, users]);
+
+
   const handleSaveRecord = (record: SalesRecord) => {
     setAllData(prev => {
       const existsIndex = prev.findIndex(r => r.id === record.id);
+      let updated;
       if (existsIndex !== -1) {
-        // Update existing
-        const updated = [...prev];
+        updated = [...prev];
         updated[existsIndex] = record;
-        return updated;
       } else {
-        // Add new
-        return [record, ...prev];
+        updated = [record, ...prev];
       }
+      setLastUpdated(new Date());
+      return updated;
     });
-    setEditingRecord(null); // Reset editing state
+    setEditingRecord(null); 
     setShowForm(false);
   };
 
@@ -154,17 +408,8 @@ const App: React.FC = () => {
      handleSaveRecord(updatedRecord);
   };
 
-  const handleAnalyze = async () => {
-    setAnalyzing(true);
-    setAnalysis('');
-    const result = await analyzeSalesData(filteredData);
-    setAnalysis(result);
-    setAnalyzing(false);
-  };
-
   const handleLogout = () => {
     setCurrentUser(null);
-    setAnalysis('');
     setCurrentScreen('dashboard');
   };
 
@@ -173,7 +418,6 @@ const App: React.FC = () => {
     setCurrentScreen('detail');
   };
 
-  // User Management Handlers (Admin)
   const handleAddUser = (newUsers: User | User[]) => {
     setUsers(prev => {
         const usersToAdd = Array.isArray(newUsers) ? newUsers : [newUsers];
@@ -221,12 +465,33 @@ const App: React.FC = () => {
     return new Intl.NumberFormat('vi-VN', { notation: "compact", compactDisplay: "short" }).format(num);
   };
 
+  const refreshData = () => {
+     const savedData = localStorage.getItem('sales_records');
+     if (savedData) {
+        setAllData(JSON.parse(savedData));
+        setLastUpdated(new Date());
+     }
+  };
+
+  // Helper functions for Date Filtering (Quick Select)
+  const setFilterToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setStartDate(today);
+    setEndDate(today);
+  };
+
+  const setFilterMonth = () => {
+    const date = new Date();
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+    setStartDate(firstDay);
+    setEndDate(lastDay);
+  };
+
   if (!currentUser) {
-    // Pass users state to Login component
     return <Login onLogin={setCurrentUser} users={users} />;
   }
 
-  // Calculate % Banca
   const bancaPercentage = stats.totalVolume > 0 
     ? ((stats.totalBanca / stats.totalVolume) * 100).toFixed(1) 
     : '0';
@@ -236,36 +501,44 @@ const App: React.FC = () => {
     setEndDate(end);
   };
 
+  const canAccessSettings = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
+  const showSmFilterUI = ['ADMIN', 'RSM'].includes(currentUser.role);
+  const showDssFilterUI = ['ADMIN', 'RSM', 'SM'].includes(currentUser.role);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-white flex flex-col font-sans">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <header className="bg-white border-b border-emerald-100 sticky top-0 z-30 shadow-sm">
         <div className="max-w-[1920px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentScreen('dashboard')}>
-             <div className="bg-emerald-600 text-white p-2 rounded-lg">
-                <FileText size={24} />
+             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-2 rounded-lg shadow-md">
+                <FileText size={22} />
              </div>
              <div>
-                <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-none">DSA Dashboard</h1>
-                <p className="text-xs text-gray-500 mt-0.5 font-medium">{currentUser.role === 'DSA' ? 'Khu vực cá nhân' : 'Khu vực quản trị'}</p>
+                <h1 className="text-xl font-bold text-gray-800 tracking-tight leading-none">DSA Dashboard</h1>
+                <p className="text-xs text-emerald-600 mt-0.5 font-bold uppercase">{currentUser.role === 'DSA' ? 'Khu vực cá nhân' : 'Khu vực quản trị'}</p>
              </div>
           </div>
           
           <div className="flex items-center space-x-4">
-             {/* Admin Button */}
-             {currentUser.role === 'ADMIN' && currentScreen !== 'admin' && (
+             {/* Admin / Management Button */}
+             {canAccessSettings && currentScreen !== 'admin' && (
                 <button 
                   onClick={() => setCurrentScreen('admin')}
-                  className="flex items-center text-gray-600 hover:text-emerald-600 mr-2"
+                  className="flex items-center text-gray-600 hover:text-emerald-700 font-medium transition-colors bg-gray-50 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-transparent hover:border-emerald-200 hidden md:flex"
                 >
-                  <Settings size={18} className="mr-1" /> Admin
+                  <Settings size={18} className="mr-2" /> Quản lý
                 </button>
              )}
 
-            <div className="flex items-center text-sm text-gray-600 mr-2 bg-gray-100 px-3 py-1 rounded-full">
-               <UserCircle className="mr-2 text-gray-500" size={16} />
-               <span className="font-semibold mr-1">{currentUser.name}</span>
-               <span className="text-xs text-gray-400">({currentUser.role})</span>
+            <div className="flex items-center text-sm text-gray-600 mr-2 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full shadow-sm hidden md:flex">
+               {currentUser.avatar ? (
+                  <img src={currentUser.avatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover mr-2 border border-emerald-200" />
+               ) : (
+                  <UserCircle className="mr-2 text-emerald-600" size={18} />
+               )}
+               <span className="font-bold text-gray-800 mr-1">{currentUser.name}</span>
+               <span className="text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded ml-1 font-bold">{currentUser.role}</span>
             </div>
 
             <button 
@@ -281,6 +554,32 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
+        {/* Dynamic Header Alert / Quote */}
+        {dsaInfo && !dsaInfo.isReportedToday ? (
+           <div className="mb-6 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl py-4 px-5 flex items-center shadow-sm animate-pulse">
+               <div className="bg-red-100 p-2 rounded-full mr-4">
+                 <BellRing className="text-red-600 animate-bounce" size={24} />
+               </div>
+               <div>
+                  <h3 className="font-bold text-red-800 text-lg">Bạn chưa báo cáo hôm nay!</h3>
+                  <p className="text-red-600 text-sm">Hãy cập nhật doanh số ngay để cải thiện thứ hạng và không bị nhắc nhở.</p>
+               </div>
+               <button 
+                onClick={handleCreateNew}
+                className="ml-auto bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-colors whitespace-nowrap hidden sm:block"
+               >
+                 Báo cáo ngay
+               </button>
+           </div>
+        ) : (
+           <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-xl py-3 px-5 flex items-center shadow-sm">
+              <Megaphone className="text-orange-500 mr-3 flex-shrink-0 animate-bounce" size={20} />
+              <p className="font-bold text-orange-800 italic text-sm md:text-base">
+                 "{randomQuote}"
+              </p>
+           </div>
+        )}
+
         {currentScreen === 'admin' ? (
           <UserManagement 
             users={users} 
@@ -300,7 +599,7 @@ const App: React.FC = () => {
           /* Dashboard View */
           <>
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4 mb-8">
               <StatsCard 
                 title="Tổng Doanh Số" 
                 value={`${formatCurrencyCompact(stats.totalVolume)} ₫`} 
@@ -326,12 +625,24 @@ const App: React.FC = () => {
                 color="blue"
                 icon={<CreditCard size={20} />}
               />
-              <StatsCard 
-                title="Đã Báo Cáo" 
-                value={`${stats.reportedCount}/${stats.totalRecords}`} 
-                color="green"
-                icon={<Users size={20} />}
-              />
+              
+              {/* Conditional Card: Ranking (DSA) vs Reported (Manager) */}
+              {dsaInfo ? (
+                 <StatsCard 
+                  title="Xếp Hạng Hiện Tại" 
+                  value={`#${dsaInfo.rank} / ${dsaInfo.totalDSAs}`} 
+                  color="green"
+                  icon={<Trophy size={20} />}
+                />
+              ) : (
+                <StatsCard 
+                  title="Đã Báo Cáo" 
+                  value={`${stats.reportedCount}/${stats.totalRecords}`} 
+                  color="green"
+                  icon={<Users size={20} />}
+                />
+              )}
+
               <StatsCard 
                 title="Tỷ lệ hoạt động" 
                 value={stats.totalRecords > 0 ? `${((stats.reportedCount / stats.totalRecords) * 100).toFixed(0)}%` : '0%'} 
@@ -340,115 +651,159 @@ const App: React.FC = () => {
               />
             </div>
 
-            {/* AI Analysis Section */}
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-8 border border-indigo-100 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-indigo-900 flex items-center">
-                  <BrainCircuit className="mr-2 text-indigo-600" /> 
-                  Phân tích thông minh (Gemini AI)
-                </h3>
-                <button 
-                  onClick={handleAnalyze} 
-                  disabled={analyzing}
-                  className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                >
-                  {analyzing ? 'Đang phân tích...' : 'Phân tích dữ liệu ngay'}
-                </button>
-              </div>
-              
-              {analysis ? (
-                <div className="prose prose-sm text-indigo-800 bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
-                    <p className="whitespace-pre-line">{analysis}</p>
-                </div>
-              ) : (
-                <p className="text-sm text-indigo-400 italic">Nhấn nút "Phân tích" để xem đánh giá hiệu suất {currentUser.role === 'DSA' ? 'cá nhân' : 'đội nhóm'} từ AI.</p>
-              )}
-            </div>
-
             {/* Controls Toolbar */}
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div className="bg-white p-4 rounded-xl shadow-md border border-gray-100 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                {/* Filters */}
-               <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Calendar size={18} className="text-gray-400" />
-                    <input 
-                      type="date" 
-                      value={startDate} 
-                      onChange={e => setStartDate(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 text-white text-sm rounded-md p-2 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" 
-                    />
-                    <span className="text-gray-400 font-bold">-</span>
-                    <input 
-                      type="date" 
-                      value={endDate} 
-                      onChange={e => setEndDate(e.target.value)}
-                      className="bg-slate-800 border border-slate-700 text-white text-sm rounded-md p-2 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" 
-                    />
+               <div className="flex flex-col md:flex-row md:items-center gap-3 w-full">
+                  <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                    {/* Date Picker Group */}
+                    <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-lg border border-gray-200 w-full sm:w-auto justify-between sm:justify-start">
+                      <div className="px-2 text-gray-400"><Calendar size={18} /></div>
+                      <input 
+                        type="date" 
+                        value={startDate} 
+                        onChange={e => setStartDate(e.target.value)}
+                        className="bg-transparent border-none text-gray-700 text-sm font-medium focus:ring-0 p-1 w-24 md:w-28" 
+                      />
+                      <span className="text-gray-300 font-bold">-</span>
+                      <input 
+                        type="date" 
+                        value={endDate} 
+                        onChange={e => setEndDate(e.target.value)}
+                        className="bg-transparent border-none text-gray-700 text-sm font-medium focus:ring-0 p-1 w-24 md:w-28" 
+                      />
+                    </div>
+                    
+                    {/* Quick Filters - Mobile Friendly */}
+                    <div className="flex gap-2 w-full sm:w-auto">
+                       <button onClick={setFilterToday} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors whitespace-nowrap">
+                          Hôm nay
+                       </button>
+                       <button onClick={setFilterMonth} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors whitespace-nowrap">
+                          Tháng này
+                       </button>
+                    </div>
                   </div>
 
-                  <select 
-                    value={statusFilter} 
-                    onChange={e => setStatusFilter(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-white text-sm rounded-md p-2 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 min-w-[160px]"
-                  >
-                    <option value="all">Tất cả trạng thái</option>
-                    <option value="Đã báo cáo">Đã báo cáo</option>
-                    <option value="Chưa báo cáo">Chưa báo cáo</option>
-                  </select>
+                   <div className="h-8 w-px bg-gray-200 mx-1 hidden lg:block"></div>
+                   
+                   <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                      {/* SM Filter */}
+                      {showSmFilterUI && (
+                        <div className="relative flex-1 md:flex-none">
+                            <select 
+                                value={smFilter} 
+                                onChange={e => setSmFilter(e.target.value)}
+                                className="w-full bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-500 md:w-44 outline-none"
+                            >
+                                <option value="all">Tất cả SM</option>
+                                {smOptions.map(sm => (
+                                    <option key={sm.id} value={sm.name}>{sm.name}</option>
+                                ))}
+                            </select>
+                            <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none"/>
+                        </div>
+                      )}
+
+                      {/* DSS Filter */}
+                      {showDssFilterUI && (
+                        <div className="relative flex-1 md:flex-none">
+                            <select 
+                                value={dssFilter} 
+                                onChange={e => setDssFilter(e.target.value)}
+                                className="w-full bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-500 md:w-44 outline-none"
+                            >
+                                <option value="all">Tất cả DSS</option>
+                                {dssOptions.map(dss => (
+                                    <option key={dss.id} value={dss.name}>{dss.name}</option>
+                                ))}
+                            </select>
+                            <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500 pointer-events-none"/>
+                        </div>
+                      )}
+
+                      {/* Status Filter */}
+                      <div className="relative flex-1 md:flex-none">
+                          <select 
+                            value={statusFilter} 
+                            onChange={e => setStatusFilter(e.target.value)}
+                            className="w-full bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 md:w-44 outline-none"
+                          >
+                            <option value="all">Tất cả trạng thái</option>
+                            <option value="Đã báo cáo">Đã báo cáo</option>
+                            <option value="Chưa báo cáo">Chưa báo cáo</option>
+                          </select>
+                          <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none"/>
+                      </div>
+                      
+                       <button 
+                        onClick={refreshData}
+                        className="p-2.5 bg-gray-50 text-emerald-600 rounded-lg border border-gray-200 hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
+                        title="Làm mới dữ liệu"
+                      >
+                          <RefreshCw size={18} />
+                      </button>
+                   </div>
                </div>
 
                {/* Actions */}
-               <div className="flex items-center gap-3">
+               <div className="flex items-center gap-3 mt-4 md:mt-0 justify-between md:justify-end w-full md:w-auto">
                    {/* View Toggle */}
-                   <div className="bg-gray-100 p-1 rounded-lg flex text-sm">
-                      <button 
-                        onClick={() => setViewMode('table')}
-                        className={`px-3 py-1.5 rounded-md flex items-center ${viewMode === 'table' ? 'bg-white shadow-sm text-emerald-600 font-medium' : 'text-gray-500'}`}
-                      >
-                         <TableIcon size={16} className="mr-1" /> Bảng
-                      </button>
+                   <div className="bg-gray-100 p-1 rounded-lg flex text-sm shadow-inner w-full md:w-auto justify-center">
                       <button 
                         onClick={() => setViewMode('chart')}
-                        className={`px-3 py-1.5 rounded-md flex items-center ${viewMode === 'chart' ? 'bg-white shadow-sm text-emerald-600 font-medium' : 'text-gray-500'}`}
+                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'chart' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'}`}
                       >
-                         <BarChart2 size={16} className="mr-1" /> Biểu đồ
+                         <BarChart2 size={16} className="mr-1.5" /> Biểu đồ
+                      </button>
+                      <button 
+                        onClick={() => setViewMode('table')}
+                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'table' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                         <TableIcon size={16} className="mr-1.5" /> Bảng
                       </button>
                    </div>
 
-                   <div className="h-6 w-px bg-gray-300 mx-1"></div>
+                   <div className="h-8 w-px bg-gray-200 mx-1 hidden md:block"></div>
 
-                   <button 
-                    onClick={handleExportCSV}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-                   >
-                     <Download size={16} className="mr-2" /> Xuất Excel
-                   </button>
+                   {/* CHANGE: Export only if NOT DSA */}
+                   {currentUser.role !== 'DSA' && (
+                       <button 
+                        onClick={handleExportCSV}
+                        className="inline-flex items-center px-4 py-2.5 border border-gray-200 shadow-sm text-sm font-bold rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:text-emerald-600 hover:border-emerald-200 transition-all whitespace-nowrap"
+                       >
+                         <Download size={18} className="mr-2" /> <span className="hidden md:inline">Xuất Excel</span>
+                       </button>
+                   )}
                    
+                   {/* Desktop Update Button */}
                    <button 
                     onClick={handleCreateNew}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                    className="hidden md:inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-bold rounded-lg text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all whitespace-nowrap"
                    >
-                     <Plus size={18} className="mr-2" /> Cập nhật mới
+                     <Plus size={20} className="mr-2" /> Cập nhật mới
                    </button>
                </div>
             </div>
 
             {/* Main Content Area */}
-            {viewMode === 'table' ? (
-              <SalesTable 
+            {viewMode === 'chart' ? (
+               <DashboardCharts 
+                data={filteredData} 
+                globalData={dateFilteredGlobalData} 
+                currentUser={currentUser} 
+                users={users}
+                onDateChange={handleDateChange}
+                startDate={startDate}
+                endDate={endDate}
+              />
+            ) : (
+               <SalesTable 
                 data={filteredData} 
                 onRowClick={handleSelectDSA} 
                 onEdit={handleEditRecord}
                 onApprove={handleApproveRecord}
                 currentUser={currentUser}
-              />
-            ) : (
-              <DashboardCharts 
-                data={filteredData} 
-                currentUser={currentUser} 
-                onDateChange={handleDateChange}
-                startDate={startDate}
-                endDate={endDate}
               />
             )}
           </>
@@ -465,6 +820,20 @@ const App: React.FC = () => {
           initialData={editingRecord}
         />
       )}
+      
+      {/* Mobile-Friendly Floating Action Button for Updates */}
+      {currentScreen === 'dashboard' && (
+          <button
+            onClick={handleCreateNew}
+            className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-full p-4 shadow-xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center border-4 border-white/20"
+            title="Cập nhật mới"
+          >
+            <Plus size={32} />
+          </button>
+      )}
+      
+      {/* Floating Chatbot */}
+      <ChatBot data={filteredData} />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { User } from '../types';
 
 export const authService = {
-  login: async (username: string, users: User[]): Promise<User | null> => {
+  login: async (username: string, password: string, users: User[]): Promise<User | null> => {
     // Simulating API call
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -9,7 +9,13 @@ export const authService = {
         // Case insensitive and trim whitespace
         const cleanUsername = username.trim();
         const user = users.find(u => u.username === cleanUsername);
-        resolve(user || null);
+        
+        // Simple password check (Mock logic: all passwords are '123')
+        if (user && password === '123') {
+            resolve(user);
+        } else {
+            resolve(null);
+        }
       }, 300); // Reduced delay for better UX
     });
   },

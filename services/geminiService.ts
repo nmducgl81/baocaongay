@@ -3,38 +3,46 @@ import { SalesRecord } from "../types";
 
 const API_KEY = process.env.API_KEY || '';
 
-export const analyzeSalesData = async (data: SalesRecord[]): Promise<string> => {
+export const createChatSession = (data: SalesRecord[]) => {
   if (!API_KEY) {
-    return "API Key is missing. Please check your configuration.";
+    console.error("API Key is missing");
+    return null;
   }
 
-  try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  
+  // Create a summarized context of the data to save tokens
+  const dataContext = JSON.stringify(data.map(d => ({
+    name: d.name,
+    role: d.dsaCode ? 'DSA' : 'Manager',
+    status: d.status,
+    vol: d.directVolume,
+    app: d.directApp,
+    loan: d.directLoan,
+    calls: d.callsMonth
+  })), null, 2);
+
+  const systemInstruction = `
+    Bạn là trợ lý ảo AI hỗ trợ đội ngũ kinh doanh (Sales Assistant).
+    Bạn có quyền truy cập vào dữ liệu báo cáo bán hàng hiện tại của team.
     
-    const prompt = `
-      Analyze the following sales team performance data for Vietnam market (currency VND). 
-      Identify top performers based on Volume and Activity (Calls/Flyers). 
-      Point out who hasn't reported yet.
-      Provide a concise summary in Vietnamese suitable for a manager's dashboard.
-      
-      Data:
-      ${JSON.stringify(data.map(d => ({
-        name: d.name,
-        status: d.status,
-        volume: d.directVolume,
-        calls: d.callsMonth,
-        flyers: d.flyers
-      })), null, 2)}
-    `;
+    Dữ liệu hiện tại (JSON):
+    ${dataContext}
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
+    Nhiệm vụ của bạn:
+    1. Trả lời các câu hỏi về doanh số, ai đang dẫn đầu, ai chưa báo cáo.
+    2. Động viên nhân viên nếu doanh số thấp.
+    3. Trả lời ngắn gọn, súc tích, giọng điệu chuyên nghiệp nhưng thân thiện, nhiệt huyết.
+    4. Nếu được hỏi về dữ liệu không có trong JSON, hãy nói là bạn chưa có thông tin đó.
+    5. Đơn vị tiền tệ là VND, hãy format số tiền cho dễ đọc (ví dụ: 10 triệu, 100k).
+  `;
 
-    return response.text;
-  } catch (error) {
-    console.error("Error analyzing data with Gemini:", error);
-    return "Không thể phân tích dữ liệu lúc này. Vui lòng thử lại sau.";
-  }
+  const chat = ai.chats.create({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction: systemInstruction,
+    },
+  });
+
+  return chat;
 };
