@@ -176,18 +176,16 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
         finalApprovalStatus = 'Approved'; 
       }
     } else {
-      // New Record
+      // New Record logic
       if (currentUser.role === 'DSA') {
-         // Optionally, new records by DSA could also require approval, 
-         // but for now let's assume new reports are implicitly approved or pending.
-         // Let's set Pending for consistency if we want strict control.
-         // However, prompt asked for "Edit with approval". Let's stick to edits trigger Pending.
-         finalApprovalStatus = 'Approved'; 
+         finalApprovalStatus = 'Approved'; // Or 'Pending' if you want strict control
       }
     }
 
     onSave({
       ...formData,
+      // CRITICAL FIX: Always set status to 'Đã báo cáo' when submitting a report
+      status: 'Đã báo cáo',
       approvalStatus: finalApprovalStatus,
       // Ensure ID exists if editing, or create new if not
       id: initialData?.id || (Math.random() * 10000).toFixed(0)
