@@ -7,29 +7,30 @@ export const MOCK_USERS: User[] = [
       username: 'admin', 
       name: 'System Admin', 
       role: 'ADMIN',
-      avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJJSURBVHgB7Zq9jxpBEIbnDVwcC5bM2LhIEomERMRObEQU/wUQKZK/I0KkCBG5CImIyI0tWzYSEuTGRoaNjc8yM/Z4z9zu9m2PZ6bao5WmZ7p7+ulhprt6Z87n81k1y+WyWq/X1WazqTabjZfVarWqFovFzD1e/X6/2u/3XjabTfX58+d/7nmx2+28rP1+Xz08PMy84/V8PquvX7962YfRaFSPj48z73g9HA7V9fW1l30YjUbV169fpx7yenz8/5XyYRiG1Xg8nnrH6/PzszgIfRiPx9VwOJytx4v3s9lscRD6MBqNqtFoNHOPVz4Iffj+/bs4tFwuh8uHl5eX4iB0Qj6E8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPIh9+Pz5szi0XC6Hy4d3796Jg9AJ+RDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEPvQ7/eLQ8vlcrh8eP/+\/dQ9XqfTqXj50O12q+fn56l3vA6HQ3V1deVlH7rdbrVer2fe8Xp7e6uOxyMv+/D169f/3POi1Wp5Wfv9vvr06dPMO17/Ad7yJlb1Q/IwAAAAAElFTkSuQmCC'
+      phoneNumber: '0909000111',
+      avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJJSURBVHgB7Zq9jxpBEIbnDVwcC5bM2LhIEomERMRObEQU/wUQKZK/I0KkCBG5CImIyI0tWzYSEuTGRoaNjc8yM/Z4z9zu9m2PZ6bao5WmZ7p7+ulhprt6Z87n81k1y+WyWq/X1WazqTabjZfVarWqFovFzD1e/X6/2u/3XjabTfX58+d/7nmx2+28rP1+Xz08PMy84/V8PquvX7962YfRaFSPj48z73g9HA7V9fW1l30YjUbV169fpx7yenz8/5XyYRiG1Xg8nnrH6/PzszgIfRiPx9VwOJytx4v3s9lscRD6MBqNqtFoNHOPVz4Iffj+/bs4tFwuh8uHl5eX4iB0Qj6E8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIh9+Pz5szi0XC6Hy4d3796Jg9AJ+RDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEPvQ7/eLQ8vlcrh8eP/+\/dQ9XqfTqXj50O12q+fn56l3vA6HQ3V1deVlH7rdbrVer2fe8Xp7e6uOxyMv+/D169f/3POi1Wp5Wfv9vvr06dPMO17/Ad7yJlb1Q/IwAAAAAElFTkSuQmCC'
   },
-  { id: 'rsm1', username: 'rsm_hcm', name: 'NGUYỄN VĂN A (RSM)', role: 'RSM', parentId: 'admin' },
+  { id: 'rsm1', username: 'rsm_hcm', name: 'NGUYỄN VĂN A (RSM)', role: 'RSM', parentId: 'admin', phoneNumber: '0912345678' },
   
   // SMs under RSM1
-  { id: 'sm1', username: 'sm_east2', name: 'EAST 2 (SM)', role: 'SM', parentId: 'rsm1' },
-  { id: 'sm2', username: 'sm_west1', name: 'WEST 1 (SM)', role: 'SM', parentId: 'rsm1' },
+  { id: 'sm1', username: 'sm_east2', name: 'EAST 2 (SM)', role: 'SM', parentId: 'rsm1', phoneNumber: '0987654321' },
+  { id: 'sm2', username: 'sm_west1', name: 'WEST 1 (SM)', role: 'SM', parentId: 'rsm1', phoneNumber: '0977888999' },
 
   // DSSs under SM1
-  { id: 'dss1', username: 'dss_qua', name: 'BÙI CÔNG QUẢ', role: 'DSS', parentId: 'sm1' },
-  { id: 'dss2', username: 'dss_nhung', name: 'LÊ THỊ NHUNG', role: 'DSS', parentId: 'sm1' },
-  { id: 'dss3', username: 'dss_nhi', name: 'HUỲNH KHANG NHI', role: 'DSS', parentId: 'sm1' },
+  { id: 'dss1', username: 'dss_qua', name: 'BÙI CÔNG QUẢ', role: 'DSS', parentId: 'sm1', phoneNumber: '0933444555' },
+  { id: 'dss2', username: 'dss_nhung', name: 'LÊ THỊ NHUNG', role: 'DSS', parentId: 'sm1', phoneNumber: '0944555666' },
+  { id: 'dss3', username: 'dss_nhi', name: 'HUỲNH KHANG NHI', role: 'DSS', parentId: 'sm1', phoneNumber: '0955666777' },
 
   // DSAs under DSS1 (Qua)
-  { id: 'dsa1', username: 'dsa_thien', dsaCode: 'DA014795', name: 'TRẦN MINH THIỆN', role: 'DSA', parentId: 'dss1' },
-  { id: 'dsa2', username: 'dsa_trang', dsaCode: 'DA013631', name: 'VÒNG ĐOAN TRANG', role: 'DSA', parentId: 'dss1' },
-  { id: 'dsa3', username: 'dsa_thuy', dsaCode: 'DA015535', name: 'TRƯƠNG THỊ THÙY TRANG', role: 'DSA', parentId: 'dss1' },
+  { id: 'dsa1', username: 'dsa_thien', dsaCode: 'DA014795', name: 'TRẦN MINH THIỆN', role: 'DSA', parentId: 'dss1', phoneNumber: '0867641331' },
+  { id: 'dsa2', username: 'dsa_trang', dsaCode: 'DA013631', name: 'VÒNG ĐOAN TRANG', role: 'DSA', parentId: 'dss1', phoneNumber: '0966777888' },
+  { id: 'dsa3', username: 'dsa_thuy', dsaCode: 'DA015535', name: 'TRƯƠNG THỊ THÙY TRANG', role: 'DSA', parentId: 'dss1', phoneNumber: '0988999000' },
 
   // DSAs under DSS2 (Nhung)
-  { id: 'dsa4', username: 'dsa_hue', dsaCode: 'DA012308', name: 'PHAN THỊ THANH HUẾ', role: 'DSA', parentId: 'dss2' },
+  { id: 'dsa4', username: 'dsa_hue', dsaCode: 'DA012308', name: 'PHAN THỊ THANH HUẾ', role: 'DSA', parentId: 'dss2', phoneNumber: '0999000111' },
   
   // DSAs under DSS3 (Nhi)
-  { id: 'dsa5', username: 'dsa_tien', dsaCode: 'DA012262', name: 'NGUYỄN THỊ BÍCH TIÊN', role: 'DSA', parentId: 'dss3' },
+  { id: 'dsa5', username: 'dsa_tien', dsaCode: 'DA012262', name: 'NGUYỄN THỊ BÍCH TIÊN', role: 'DSA', parentId: 'dss3', phoneNumber: '0911222333' },
 ];
 
 export const generateMockData = (): SalesRecord[] => {
@@ -47,6 +48,9 @@ export const generateMockData = (): SalesRecord[] => {
       directLoan: 0,
       directAppCRC: 2,
       directLoanCRC: 1,
+      directAppFEOL: 0,
+      directLoanFEOL: 0,
+      directVolumeFEOL: 0,
       directVolume: 0,
       directBanca: 0,
       directRol: '0.0%',
@@ -74,6 +78,9 @@ export const generateMockData = (): SalesRecord[] => {
       directLoan: 0,
       directAppCRC: 0,
       directLoanCRC: 0,
+      directAppFEOL: 0,
+      directLoanFEOL: 0,
+      directVolumeFEOL: 0,
       directVolume: 0,
       directBanca: 0,
       directRol: '0.0%',
@@ -101,6 +108,9 @@ export const generateMockData = (): SalesRecord[] => {
       directLoan: 0,
       directAppCRC: 1,
       directLoanCRC: 1,
+      directAppFEOL: 0,
+      directLoanFEOL: 0,
+      directVolumeFEOL: 0,
       directVolume: 0,
       directBanca: 0,
       directRol: '0.0%',
@@ -128,6 +138,9 @@ export const generateMockData = (): SalesRecord[] => {
       directLoan: 3,
       directAppCRC: 5,
       directLoanCRC: 2,
+      directAppFEOL: 2,
+      directLoanFEOL: 1,
+      directVolumeFEOL: 15000000,
       directVolume: 105000000,
       directBanca: 1800000,
       directRol: '1.7%',
@@ -155,6 +168,9 @@ export const generateMockData = (): SalesRecord[] => {
       directLoan: 1,
       directAppCRC: 3,
       directLoanCRC: 0,
+      directAppFEOL: 0,
+      directLoanFEOL: 0,
+      directVolumeFEOL: 0,
       directVolume: 27000000,
       directBanca: 600000,
       directRol: '2.2%',

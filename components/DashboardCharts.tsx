@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { SalesRecord, User } from '../types';
-import { Calendar, Award, BarChart, Medal, TrendingUp, Crown, Trophy, Star } from 'lucide-react';
+import { Calendar, Award, BarChart, Users, Map, User as UserIcon } from 'lucide-react';
 
 interface DashboardChartsProps {
   data: SalesRecord[]; // Local filtered data for performance view
@@ -14,10 +14,22 @@ interface DashboardChartsProps {
 
 type TabType = 'volume' | 'apps' | 'activity';
 type ViewType = 'chart' | 'ranking';
+type RankingScope = 'dsa' | 'dss' | 'sm';
+
+interface RankingItem {
+  id: string;
+  name: string;
+  dss: string;
+  sm: string;
+  volume: number;
+  banca: number;
+  crc: number;
+}
 
 export const DashboardCharts: React.FC<DashboardChartsProps> = ({ data, globalData, currentUser, users = [], onDateChange, startDate, endDate }) => {
   const [activeTab, setActiveTab] = useState<TabType>('volume');
   const [viewType, setViewType] = useState<ViewType>('chart');
+  const [rankingScope, setRankingScope] = useState<RankingScope>('dsa');
 
   // Determine grouping key based on user role for the CHART
   const groupKey = useMemo(() => {
@@ -80,29 +92,20 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({ data, globalDa
 
   // --- RANKING DATA LOGIC (Uses `globalData` - regional view) ---
   const rankingData = useMemo(() => {
+    
+    // Config based on selected Scope
     let groupBy = 'dsaCode';
     let nameKey = 'name';
-    let subKey = 'dss'; 
-    let rankTitle = 'DSA xuất sắc nhất';
-    
-    // For ranking, we want to show detailed info for individual performers if possible
-    // But logic depends on who is viewing.
-    // However, the request asks to honor Top 3 stars (DSA, DSS, SM).
-    // Let's assume the default view is ranking DSAs regardless of user, OR respect hierarchy.
-    // The previous implementation respected hierarchy. Let's keep it but enhance data.
+    let rankTitle = 'Cá nhân xuất sắc (DSA)';
 
-    if (currentUser.role === 'DSS') {
-       groupBy = 'dss';
-       nameKey = 'dss';
-       subKey = 'smName';
-       rankTitle = 'DSS xuất sắc nhất';
-    } else if (['SM', 'RSM', 'ADMIN'].includes(currentUser.role)) {
-       // If SM/Admin viewing, usually they want to see Top DSAs or Top DSSs.
-       // The prompt implies honoring "Stars" with DSA, DSS, SM names. 
-       // This implies the leaderboard items are DSAs.
-       groupBy = 'dsaCode';
-       nameKey = 'name';
-       rankTitle = 'Ngôi sao bán hàng (DSA)';
+    if (rankingScope === 'dss') {
+        groupBy = 'dss';
+        nameKey = 'dss';
+        rankTitle = 'Team xuất sắc (DSS)';
+    } else if (rankingScope === 'sm') {
+        groupBy = 'smName';
+        nameKey = 'smName';
+        rankTitle = 'Khu vực xuất sắc (SM)';
     }
 
     const grouped = globalData.reduce((acc, curr) => {
@@ -112,26 +115,31 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({ data, globalDa
         if (!acc[key]) {
             acc[key] = {
                 id: key,
-                name: (curr as any)[nameKey],
+                name: (curr as any)[nameKey] || key, // Use key as fallback name
                 dss: curr.dss,
                 sm: curr.smName,
                 volume: 0,
-                apps: 0
+                banca: 0,
+                crc: 0
             };
         }
         acc[key].volume += curr.directVolume;
-        acc[key].apps += curr.directApp;
+        acc[key].banca += curr.directBanca;
+        acc[key].crc += (curr.directLoanCRC || 0);
         return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, RankingItem>);
 
+    const allItems = Object.values(grouped);
+
+    // Create 3 sorted lists
     return {
-        items: Object.values(grouped)
-            .sort((a: any, b: any) => b.volume - a.volume)
-            .slice(0, 10), // Top 10
+        topVolume: [...allItems].sort((a: RankingItem, b: RankingItem) => b.volume - a.volume).slice(0, 10).filter((i: RankingItem) => i.volume > 0),
+        topBanca: [...allItems].sort((a: RankingItem, b: RankingItem) => b.banca - a.banca).slice(0, 10).filter((i: RankingItem) => i.banca > 0),
+        topCRC: [...allItems].sort((a: RankingItem, b: RankingItem) => b.crc - a.crc).slice(0, 10).filter((i: RankingItem) => i.crc > 0),
         title: rankTitle
     };
 
-  }, [globalData, currentUser.role]);
+  }, [globalData, rankingScope]);
 
 
   const maxValue = useMemo(() => {
@@ -142,12 +150,80 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({ data, globalDa
         return Math.max(d.calls, d.flyers, d.dlk);
         }), 1);
     } else {
-        return Math.max(...rankingData.items.map((d: any) => d.volume), 1);
+        return 1;
     }
-  }, [chartData, rankingData, activeTab, viewType]);
+  }, [chartData, activeTab, viewType]);
 
   const formatValue = (val: number) => {
      return new Intl.NumberFormat('vi-VN', { notation: "compact", compactDisplay: "short" }).format(val);
+  };
+
+  const renderRankingColumn = (title: string, items: any[], metricKey: string, colorTheme: 'yellow' | 'blue' | 'red') => {
+      const maxVal = Math.max(...items.map((i: any) => i[metricKey]), 1);
+      
+      const themeStyles = {
+          yellow: { header: 'text-yellow-700 bg-yellow-50 border-yellow-200', bar: 'bg-yellow-400', text: 'text-yellow-700' },
+          blue: { header: 'text-blue-700 bg-blue-50 border-blue-200', bar: 'bg-blue-400', text: 'text-blue-700' },
+          red: { header: 'text-red-700 bg-red-50 border-red-200', bar: 'bg-red-400', text: 'text-red-700' },
+      };
+      
+      const style = themeStyles[colorTheme];
+
+      return (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
+               <div className={`p-3 font-bold text-center border-b uppercase text-sm tracking-wider ${style.header}`}>
+                   {title}
+               </div>
+               <div className="flex-1 p-2 overflow-y-auto custom-scrollbar max-h-[400px]">
+                   {items.length === 0 ? (
+                       <div className="h-32 flex items-center justify-center text-gray-400 text-xs italic">Chưa có dữ liệu</div>
+                   ) : (
+                       items.map((item, idx) => {
+                           const isTop1 = idx === 0;
+                           const widthPercent = (item[metricKey] / maxVal) * 100;
+                           
+                           // Find Avatar Logic:
+                           // If scope is DSA: match dsaCode or name
+                           // If scope is Team/SM: No avatar usually, use Initials
+                           let avatar = null;
+                           if (rankingScope === 'dsa') {
+                               const user = users.find(u => u.name === item.name || u.dsaCode === item.id);
+                               avatar = user?.avatar;
+                           }
+
+                           return (
+                               <div key={idx} className="flex items-center gap-3 mb-3 last:mb-0 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                                   <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold flex-shrink-0 ${isTop1 ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-200 text-gray-600'}`}>
+                                       {idx + 1}
+                                   </div>
+                                   <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden flex-shrink-0">
+                                       {avatar ? (
+                                           <img src={avatar} alt="" className="w-full h-full object-cover"/> 
+                                       ) : (
+                                           <div className={`w-full h-full flex items-center justify-center text-[10px] font-bold ${rankingScope !== 'dsa' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'}`}>
+                                               {rankingScope === 'dss' ? 'TM' : rankingScope === 'sm' ? 'KV' : item.name.charAt(0)}
+                                           </div>
+                                       )}
+                                   </div>
+                                   <div className="flex-1 min-w-0">
+                                       <div className="flex justify-between items-center text-xs mb-1">
+                                           <span className={`font-bold truncate ${isTop1 ? 'text-gray-900' : 'text-gray-700'}`}>{item.name}</span>
+                                           <span className={`font-bold font-mono ${style.text}`}>
+                                               {metricKey === 'crc' ? item[metricKey] : formatValue(item[metricKey])}
+                                               {metricKey === 'crc' ? '' : ''}
+                                           </span>
+                                       </div>
+                                       <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                           <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${widthPercent}%` }}></div>
+                                       </div>
+                                   </div>
+                               </div>
+                           );
+                       })
+                   )}
+               </div>
+          </div>
+      );
   };
 
   return (
@@ -156,12 +232,12 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({ data, globalDa
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
         <div>
            <h3 className="text-xl font-bold text-gray-800 flex items-center">
-              {viewType === 'ranking' ? <Trophy className="mr-2 text-yellow-500" /> : <BarChart className="mr-2 text-emerald-600" />}
-              {viewType === 'ranking' ? 'Bảng vàng thành tích' : 'Biểu đồ hiệu quả kinh doanh'}
+              {viewType === 'ranking' ? <Award className="mr-2 text-yellow-500" /> : <BarChart className="mr-2 text-emerald-600" />}
+              {viewType === 'ranking' ? rankingData.title : 'Biểu đồ hiệu quả kinh doanh'}
            </h3>
            <p className="text-sm text-gray-500 mt-1 font-medium">
              {viewType === 'ranking' 
-                ? `Top 10 ${rankingData.title} theo doanh số (Volume)`
+                ? `Vinh danh các thành tích xuất sắc nhất`
                 : `Phân tích dữ liệu theo: ${xAxisLabel}`
              }
            </p>
@@ -196,131 +272,33 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({ data, globalDa
                 <button onClick={() => setActiveTab('activity')} className={`px-3 py-2 text-sm font-bold rounded-md whitespace-nowrap transition-all ${activeTab === 'activity' ? 'bg-white text-orange-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Hoạt động</button>
               </div>
           )}
+
+          {/* Ranking Scope Tabs (Only for Ranking View) */}
+          {viewType === 'ranking' && (
+              <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto w-full md:w-auto custom-scrollbar">
+                <button onClick={() => setRankingScope('dsa')} className={`px-3 py-2 text-sm font-bold rounded-md whitespace-nowrap transition-all flex items-center ${rankingScope === 'dsa' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <UserIcon size={14} className="mr-1"/> Cá nhân
+                </button>
+                <button onClick={() => setRankingScope('dss')} className={`px-3 py-2 text-sm font-bold rounded-md whitespace-nowrap transition-all flex items-center ${rankingScope === 'dss' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Users size={14} className="mr-1"/> Team
+                </button>
+                <button onClick={() => setRankingScope('sm')} className={`px-3 py-2 text-sm font-bold rounded-md whitespace-nowrap transition-all flex items-center ${rankingScope === 'sm' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Map size={14} className="mr-1"/> Khu vực
+                </button>
+              </div>
+          )}
         </div>
       </div>
 
       {/* --- CONTENT AREA --- */}
       <div className="flex-1 min-h-[400px]">
         
-        {/* VIEW 1: RANKING LEADERBOARD */}
+        {/* VIEW 1: RANKING LEADERBOARD (UPDATED: 3 COLUMNS) */}
         {viewType === 'ranking' && (
-            <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-4">
-               {rankingData.items.length === 0 ? (
-                   <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                       <Award size={48} className="mb-2 opacity-50"/>
-                       <p className="font-medium">Chưa có dữ liệu xếp hạng trong khoảng thời gian này.</p>
-                   </div>
-               ) : (
-                   <div className="space-y-4">
-                        {/* Header Row */}
-                        <div className="flex justify-between items-center px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                            <span>Hạng & Ngôi sao</span>
-                            <span>Thành tích</span>
-                        </div>
-                        
-                        {rankingData.items.map((item: any, idx) => {
-                            const isTop1 = idx === 0;
-                            const isTop2 = idx === 1;
-                            const isTop3 = idx === 2;
-                            const isTop3Any = idx < 3;
-                            const widthPercent = (item.volume / maxValue) * 100;
-                            
-                            // Find user to get avatar
-                            const user = users.find(u => u.name === item.name || u.dsaCode === item.id);
-                            const avatar = user?.avatar;
-
-                            // Styling for Top 3
-                            let cardClass = "bg-white border-gray-100 hover:border-emerald-200";
-                            let badgeClass = "bg-gray-100 text-gray-600";
-                            let avatarBorderClass = "border-gray-200";
-                            let icon = <span className="font-bold text-sm">{idx + 1}</span>;
-                            let starColor = "text-gray-300";
-
-                            if (isTop1) {
-                                cardClass = "bg-gradient-to-r from-yellow-50 via-amber-50 to-white border-yellow-300 shadow-lg transform scale-[1.02] z-10";
-                                badgeClass = "bg-yellow-100 text-yellow-700 border border-yellow-200";
-                                avatarBorderClass = "border-yellow-400 ring-4 ring-yellow-100";
-                                icon = <Crown size={20} className="text-yellow-600 fill-yellow-600" />;
-                                starColor = "text-yellow-500 fill-yellow-500";
-                            } else if (isTop2) {
-                                cardClass = "bg-gradient-to-r from-slate-50 to-white border-slate-300 shadow-md z-0";
-                                badgeClass = "bg-slate-200 text-slate-700 border border-slate-300";
-                                avatarBorderClass = "border-slate-400 ring-4 ring-slate-100";
-                                icon = <Medal size={20} className="text-slate-500 fill-slate-300" />;
-                                starColor = "text-slate-400 fill-slate-400";
-                            } else if (isTop3) {
-                                cardClass = "bg-gradient-to-r from-orange-50 to-white border-orange-300 shadow-md z-0";
-                                badgeClass = "bg-orange-100 text-orange-800 border border-orange-200";
-                                avatarBorderClass = "border-orange-400 ring-4 ring-orange-100";
-                                icon = <Medal size={20} className="text-orange-600 fill-orange-300" />;
-                                starColor = "text-orange-500 fill-orange-500";
-                            }
-
-                            return (
-                                <div key={idx} className={`relative p-4 rounded-xl border transition-all duration-300 flex flex-col md:flex-row items-start md:items-center gap-4 group ${cardClass}`}>
-                                    {/* Rank Badge & Avatar */}
-                                    <div className="flex items-center gap-4 min-w-[250px]">
-                                        <div className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 font-bold shadow-sm ${badgeClass}`}>
-                                            {icon}
-                                        </div>
-                                        
-                                        {/* Avatar Container with Star Border Effect */}
-                                        <div className="relative">
-                                            <div className={`w-14 h-14 rounded-full border-2 overflow-hidden ${avatarBorderClass}`}>
-                                                {avatar ? (
-                                                    <img src={avatar} alt={item.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs font-bold">
-                                                        {item.name.charAt(0)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {isTop3Any && (
-                                                <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-gray-100">
-                                                    <Star size={14} className={starColor} />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h4 className={`font-bold text-base ${isTop1 ? 'text-gray-900 text-lg' : 'text-gray-800'}`}>
-                                                    {item.name}
-                                                </h4>
-                                                {isTop1 && <span className="text-[10px] bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Vô địch</span>}
-                                            </div>
-                                            <div className="text-xs text-gray-500 flex flex-col">
-                                                {item.dss && <span>DSS: <b>{item.dss}</b></span>}
-                                                {item.sm && <span>SM: <b>{item.sm}</b></span>}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Info & Progress */}
-                                    <div className="flex-1 w-full min-w-0">
-                                        <div className="flex justify-between items-center mb-1.5">
-                                            <span className="text-xs font-bold text-gray-400 uppercase">Doanh số</span>
-                                            <span className={`font-black font-mono text-lg ${isTop1 ? 'text-emerald-700' : 'text-gray-700'}`}>
-                                                {formatValue(item.volume)}
-                                            </span>
-                                        </div>
-                                        {/* Progress Bar */}
-                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                            <div 
-                                                className={`h-full rounded-full transition-all duration-1000 ease-out 
-                                                    ${isTop1 ? 'bg-gradient-to-r from-yellow-400 to-amber-500' : 
-                                                      isTop2 ? 'bg-gradient-to-r from-slate-400 to-slate-500' : 
-                                                      isTop3 ? 'bg-gradient-to-r from-orange-400 to-orange-500' : 
-                                                      'bg-emerald-500'}`} 
-                                                style={{ width: `${widthPercent}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                   </div>
-               )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full animate-in fade-in slide-in-from-bottom-4">
+               {renderRankingColumn(`Top 10 Volume ${rankingScope === 'dsa' ? '(DSA)' : rankingScope === 'dss' ? '(Team)' : '(Khu Vực)'}`, rankingData.topVolume, "volume", "yellow")}
+               {renderRankingColumn(`Top 10 Banca ${rankingScope === 'dsa' ? '(DSA)' : rankingScope === 'dss' ? '(Team)' : '(Khu Vực)'}`, rankingData.topBanca, "banca", "blue")}
+               {renderRankingColumn(`Top 10 Thẻ CRC ${rankingScope === 'dsa' ? '(DSA)' : rankingScope === 'dss' ? '(Team)' : '(Khu Vực)'}`, rankingData.topCRC, "crc", "red")}
             </div>
         )}
 

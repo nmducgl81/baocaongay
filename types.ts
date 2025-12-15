@@ -8,6 +8,7 @@ export interface User {
   parentId?: string; // ID of the manager
   dsaCode?: string; // Only for DSA
   avatar?: string; // Base64 string of the user's portrait
+  phoneNumber?: string; // New: Phone number for contact
 }
 
 export interface SalesRecord {
@@ -30,6 +31,11 @@ export interface SalesRecord {
   directVolume: number;
   directBanca: number;
   directRol: string; // e.g., "0.0%"
+  
+  // Purple Section: FEOL Sales
+  directAppFEOL: number;
+  directLoanFEOL: number;
+  directVolumeFEOL: number;
 
   // Blue Section: Online Sales
   onlineApp: number;
@@ -55,5 +61,14 @@ export interface DashboardStats {
   totalBanca: number;
 }
 
+export interface KnowledgeArticle {
+  id: string;
+  title: string;
+  content: string; // HTML or Markdown text
+  author: string;
+  date: string;
+  role: Role; // Role required to see/edit (usually all see, manager edit)
+}
+
 export type ViewMode = 'table' | 'chart';
-export type AppScreen = 'dashboard' | 'detail' | 'admin';
+export type AppScreen = 'dashboard' | 'detail' | 'admin' | 'calculator' | 'knowledge';

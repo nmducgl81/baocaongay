@@ -1,15 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { SalesRecord } from "../types";
 
-const API_KEY = process.env.API_KEY || '';
-
 export const createChatSession = (data: SalesRecord[]) => {
-  if (!API_KEY) {
+  if (!process.env.API_KEY) {
     console.error("API Key is missing");
     return null;
   }
 
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Create a summarized context of the data to save tokens
   const dataContext = JSON.stringify(data.map(d => ({

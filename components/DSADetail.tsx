@@ -15,6 +15,13 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
 
   if (!latest) return <div>Không tìm thấy dữ liệu</div>;
 
+  // Masking helper
+  const maskCode = (code: string) => {
+    if (!code) return '';
+    if (code.length <= 5) return '***';
+    return `${code.substring(0, 2)}***${code.substring(code.length - 3)}`;
+  };
+
   const totalVolume = dsaRecords.reduce((sum, r) => sum + r.directVolume, 0);
   const totalApps = dsaRecords.reduce((sum, r) => sum + r.directApp, 0);
   const totalLoans = dsaRecords.reduce((sum, r) => sum + r.directLoan, 0);
@@ -41,7 +48,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
         </button>
         <div>
           <h2 className="text-2xl font-bold">{latest.name}</h2>
-          <p className="text-emerald-100 opacity-90 text-sm">{latest.dsaCode} | {latest.dss} | {latest.smName}</p>
+          <p className="text-emerald-100 opacity-90 text-sm">{maskCode(latest.dsaCode)} | {latest.dss} | {latest.smName}</p>
         </div>
         <div className="ml-auto text-right relative">
           <div className="text-xs uppercase opacity-70 mb-1 flex items-center justify-end gap-1">

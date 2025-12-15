@@ -1,14 +1,11 @@
-// Firebase service is currently disabled to resolve build errors.
-// The application is using local storage and mock data for persistence.
-
-/*
+// @ts-ignore
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth, signInAnonymously } from "firebase/auth";
-import { getAnalytics } from "firebase/analytics";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth, signInAnonymously, Auth } from "firebase/auth";
 
+// Config đã được cập nhật từ Firebase Console của bạn
 const firebaseConfig = {
-  apiKey: "AIzaSyCbtUQVa3u6l0POoq8Y1kV_Az-IYW09TMw",
+  apiKey: "AIzaSyCbtUQVa3u6loPOoq8Y1kV_Az-IYWO9TMw",
   authDomain: "dsabaocao.firebaseapp.com",
   projectId: "dsabaocao",
   storageBucket: "dsabaocao.firebasestorage.app",
@@ -17,30 +14,38 @@ const firebaseConfig = {
   measurementId: "G-JWQ8E7FWDX"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+let app;
+let db: Firestore | null = null;
+let auth: Auth | null = null;
 
-// Initialize analytics (safe check)
 try {
-  getAnalytics(app);
-} catch (e) {
-  console.log("Analytics not supported in this environment.");
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  auth = getAuth(app);
+  console.log("✅ Firebase Service Initialized");
+} catch (error) {
+  console.error("❌ Firebase init error:", error);
+  console.warn("⚠️ App running in Offline Mode due to Firebase error.");
 }
 
-export const ensureAuth = async () => {
-  try {
-    await signInAnonymously(auth);
-  } catch (error) {
-    console.error("Firebase Anonymous Auth Error:", error);
-  }
-};
-*/
+export { db, auth };
 
-// Export mock objects to prevent import errors if this file is referenced elsewhere
-export const db = {} as any;
-export const auth = {} as any;
-export const ensureAuth = async () => {
-  console.log("Firebase integration is disabled.");
+// Trả về object chứa trạng thái và mã lỗi
+export const ensureAuth = async (): Promise<{ success: boolean; error?: string }> => {
+  if (!auth) return { success: false, error: 'no-auth-instance' };
+  try {
+    // Đăng nhập ẩn danh để có quyền đọc/ghi database
+    await signInAnonymously(auth);
+    console.log("✅ Firebase Auth: Signed in anonymously");
+    return { success: true };
+  } catch (error: any) {
+    // Nếu lỗi là do chưa cấu hình Auth hoặc chưa bật Anonymous, chỉ warn và fallback về offline
+    if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
+       console.warn(`⚠️ Firebase Auth Config Issue (${error.code}): Switching to Offline Mode.`);
+    } else {
+       console.error("❌ Firebase Auth Error:", error.code, error.message);
+    }
+    return { success: false, error: error.code };
+  }
 };

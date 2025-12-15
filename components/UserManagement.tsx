@@ -3,7 +3,8 @@ import { User } from '../types';
 import { 
   Trash2, UserPlus, Save, X, Upload, Download, FileSpreadsheet, 
   Pencil, RefreshCw, CheckCircle, Settings, 
-  CheckSquare, Square, Users, Shield, Search, FileUp, Plus, Camera
+  CheckSquare, Square, Users, Shield, Search, FileUp, Plus, Camera,
+  Wand2, Phone, GripVertical, AlertTriangle, Briefcase, User as UserIcon, Filter
 } from 'lucide-react';
 
 interface UserManagementProps {
@@ -12,18 +13,30 @@ interface UserManagementProps {
   onAddUser: (user: User | User[]) => void;
   onUpdateUser: (user: User) => void;
   onDeleteUser: (id: string) => void;
+  onBulkDeleteUsers?: (ids: string[]) => void;
   onClose: () => void;
 }
 
-export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onAddUser, onUpdateUser, onDeleteUser, onClose }) => {
+export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onAddUser, onUpdateUser, onDeleteUser, onBulkDeleteUsers, onClose }) => {
   // State for Form Modal
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   
+  // Delete Confirmation State
+  const [deleteConfirm, setDeleteConfirm] = useState<{ 
+    isOpen: boolean; 
+    type: 'single' | 'bulk'; 
+    data: any; // ID for single, IDs array for bulk
+    message?: string;
+    subMessage?: string;
+  } | null>(null);
+
   // Initialize with DSA role by default
   const [formData, setFormData] = useState<Partial<User>>({ role: 'DSA' });
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [autoGenUsername, setAutoGenUsername] = useState(true);
   
   // Refs for file inputs
   const fileInputRef = useRef<HTMLInputElement>(null); // For CSV Import
@@ -33,54 +46,115 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkManagerId, setBulkManagerId] = useState<string>('');
   const [showBulkAction, setShowBulkAction] = useState(false);
+
+  // --- ENHANCED FILTER STATES ---
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('ALL');
+  const [filterManager, setFilterManager] = useState('');
 
   // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState({
     avatar: true,
     username: true,
     name: true,
+    phone: true,
     role: true,
     code: true,
     dss: true,
     sm: true
   });
+  
+  // Column Widths State (Default widths in pixels)
+  const [colWidths, setColWidths] = useState<Record<string, number>>({
+    checkbox: 50,
+    avatar: 80,
+    username: 150,
+    name: 220,
+    phone: 120,
+    role: 120,
+    code: 100,
+    dss: 180,
+    sm: 150,
+    actions: 100
+  });
+
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
-  // Define who can manage users.
-  const canManageUsers = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
+  // Resizing Refs
+  const resizingRef = useRef<{ startX: number, startWidth: number, colKey: string } | null>(null);
+
+  // Define who can access the screen
+  const canAccessManagement = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
+
+  // --- 1. SCOPED VIEW PERMISSIONS (HIERARCHY CHECK) ---
+  // Create a subset of users that the current user is allowed to see/manage.
+  const scopedUsers = useMemo(() => {
+    if (currentUser.role === 'ADMIN') return users;
+
+    // Build Adjacency List for fast hierarchy traversal
+    const parentMap = new Map<string, string[]>();
+    users.forEach(u => {
+        if (u.parentId) {
+            const children = parentMap.get(u.parentId) || [];
+            children.push(u.id);
+            parentMap.set(u.parentId, children);
+        }
+    });
+
+    const visibleIds = new Set<string>();
+    const queue = [currentUser.id];
+    
+    // Add self to visible list
+    visibleIds.add(currentUser.id);
+
+    // BFS Traversal to find all descendants
+    while (queue.length > 0) {
+        const currentId = queue.shift()!;
+        const children = parentMap.get(currentId) || [];
+        children.forEach(childId => {
+            if (!visibleIds.has(childId)) {
+                visibleIds.add(childId);
+                queue.push(childId);
+            }
+        });
+    }
+
+    return users.filter(u => visibleIds.has(u.id));
+  }, [users, currentUser]);
 
   // --- Logic to get list of available parents based on selected role & current user context ---
   const getAvailableParents = (targetRole: string | undefined) => {
     const role = targetRole || 'DSA'; 
     let candidates: User[] = [];
 
+    // Use scopedUsers instead of users to enforce visibility rules in dropdowns
     if (role === 'DSA') {
-        candidates = users.filter(u => u.role === 'DSS');
+        candidates = scopedUsers.filter(u => u.role === 'DSS');
     } else if (role === 'DSS') {
-        candidates = users.filter(u => u.role === 'SM');
+        candidates = scopedUsers.filter(u => u.role === 'SM');
     } else if (role === 'SM') {
-        candidates = users.filter(u => u.role === 'RSM');
+        candidates = scopedUsers.filter(u => u.role === 'RSM');
     } else if (role === 'RSM') {
-        candidates = users.filter(u => u.role === 'ADMIN');
+        candidates = scopedUsers.filter(u => u.role === 'ADMIN');
     }
 
+    // Special case: If I am SM creating a DSA directly (skip DSS level) or managing my own direct reports
     if (currentUser.role === 'SM') {
-        if (role === 'DSS') {
-            candidates = candidates.filter(u => u.id === currentUser.id);
-        } else if (role === 'DSA') {
-            candidates = candidates.filter(u => u.parentId === currentUser.id);
+        if (role === 'DSA') {
+            // Allow SM to pick themselves as parent or any of their DSS
+            const myDSS = scopedUsers.filter(u => u.role === 'DSS');
+            candidates = [currentUser, ...myDSS];
         }
     } else if (currentUser.role === 'DSS') {
         if (role === 'DSA') {
-            candidates = candidates.filter(u => u.id === currentUser.id);
+            candidates = [currentUser];
         }
     }
 
     return candidates.sort((a, b) => a.name.localeCompare(b.name));
   };
 
-  const availableParents = useMemo(() => getAvailableParents(formData.role), [users, formData.role, currentUser]);
+  const availableParents = useMemo(() => getAvailableParents(formData.role), [scopedUsers, formData.role, currentUser]);
 
   useEffect(() => {
       if (availableParents.length === 1 && !formData.parentId && !isEditing) {
@@ -88,35 +162,191 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       }
   }, [availableParents, formData.parentId, isEditing]);
 
+  // --- Auto Generate Username Logic ---
+  const generateAutoUsername = (name: string, role: string, code?: string) => {
+    if (role === 'DSA' && code) {
+        return code.trim().toUpperCase();
+    }
+    if (['DSS', 'SM', 'RSM', 'ADMIN'].includes(role) && name) {
+        return name.normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d").replace(/Đ/g, "D")
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .toLowerCase();
+    }
+    return '';
+  };
+
+  useEffect(() => {
+    if (showForm && !isEditing && autoGenUsername) {
+        const newUsername = generateAutoUsername(formData.name || '', formData.role || 'DSA', formData.dsaCode);
+        if (newUsername) {
+            setFormData(prev => ({ ...prev, username: newUsername }));
+        }
+    }
+  }, [formData.name, formData.role, formData.dsaCode, showForm, isEditing, autoGenUsername]);
+
+
   const parentLabel = useMemo(() => {
      const role = formData.role || 'DSA';
-     if (role === 'DSA') return 'Thuộc quản lý của DSS (Chọn DSS)';
+     if (role === 'DSA') return 'Thuộc quản lý của (DSS/SM)';
      if (role === 'DSS') return 'Thuộc quản lý của SM (Chọn SM)';
      if (role === 'SM') return 'Thuộc quản lý của RSM';
      return 'Người quản lý trực tiếp';
   }, [formData.role]);
 
-  // Filter Users for Table
+  // --- ENHANCED FILTER LOGIC (USING SCOPED USERS) ---
   const filteredUsers = useMemo(() => {
-      return users.filter(u => 
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (u.dsaCode && u.dsaCode.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-  }, [users, searchTerm]);
+      const term = searchTerm.toLowerCase();
+      const managerTerm = filterManager.toLowerCase();
+
+      // Use scopedUsers here so the table only shows allowed records
+      return scopedUsers.filter(u => {
+        // 1. Text Search (Name, Username, Code)
+        const matchesText = u.name.toLowerCase().includes(term) || 
+                            u.username.toLowerCase().includes(term) ||
+                            (u.dsaCode && u.dsaCode.toLowerCase().includes(term));
+        
+        // 2. Role Filter
+        const matchesRole = filterRole === 'ALL' || u.role === filterRole;
+
+        // 3. Manager Filter (Parent Name Search)
+        let matchesManager = true;
+        if (managerTerm) {
+            const manager = users.find(parent => parent.id === u.parentId); // lookup in full list for parent name is safe
+            matchesManager = manager ? manager.name.toLowerCase().includes(managerTerm) : false;
+        }
+
+        return matchesText && matchesRole && matchesManager;
+      });
+  }, [scopedUsers, users, searchTerm, filterRole, filterManager]);
 
   // --- Handlers ---
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Check if targetUser is a descendant (subordinate) of currentUser
+  const isDescendant = (targetUser: User): boolean => {
+      // Prevent deleting self
+      if (targetUser.id === currentUser.id) return false;
+
+      // Check if visible in scopedUsers (which already implies it's a descendant or self)
+      // And ensure it's not self
+      return scopedUsers.some(u => u.id === targetUser.id);
+  };
+
+  // Permissions Check for Deletion
+  const canDeleteUser = (targetUser: User) => {
+      if (currentUser.role === 'ADMIN') {
+          // Admin can delete anyone except themselves
+          return targetUser.id !== currentUser.id;
+      }
+
+      // For SM, DSS, RSM: Can only delete descendants
+      if (['RSM', 'SM', 'DSS'].includes(currentUser.role)) {
+          return isDescendant(targetUser);
+      }
+
+      return false;
+  };
+
+  // Resize Handlers
+  const handleResizeStart = (e: React.MouseEvent, colKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = {
+        startX: e.pageX,
+        startWidth: colWidths[colKey] || 100,
+        colKey: colKey
+    };
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+    document.body.style.cursor = 'col-resize';
+  };
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!resizingRef.current) return;
+    const { startX, startWidth, colKey } = resizingRef.current;
+    const diff = e.pageX - startX;
+    const newWidth = Math.max(50, startWidth + diff); // Minimum width 50px
+    
+    setColWidths(prev => ({
+        ...prev,
+        [colKey]: newWidth
+    }));
+  };
+
+  const handleResizeEnd = () => {
+    resizingRef.current = null;
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
+    document.body.style.cursor = 'default';
+  };
+
+  // Helper to remove undefined fields which cause Firebase errors
+  const cleanUser = (user: any): User => {
+    const cleaned: any = {};
+    Object.keys(user).forEach(key => {
+        if (user[key] !== undefined) {
+             cleaned[key] = user[key];
+        }
+    });
+    return cleaned as User;
+  };
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            const img = new Image();
+            img.src = e.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Calculate new size (Max width 800px)
+                const MAX_WIDTH = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    // Fill white background to handle transparency
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, width, height);
+
+                    ctx.drawImage(img, 0, 0, width, height);
+                    // Export to JPEG at 0.7 quality to keep size low
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    resolve(dataUrl);
+                } else {
+                    reject(new Error("Canvas context failed"));
+                }
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setAvatarPreview(base64);
-        setFormData(prev => ({ ...prev, avatar: base64 }));
-      };
-      reader.readAsDataURL(file);
+      setIsProcessingImage(true);
+      try {
+        const compressedBase64 = await compressImage(file);
+        setAvatarPreview(compressedBase64);
+        setFormData(prev => ({ ...prev, avatar: compressedBase64 }));
+      } catch (error) {
+        console.error("Image compression failed:", error);
+        alert("Lỗi khi xử lý ảnh. Vui lòng thử ảnh khác.");
+      } finally {
+        setIsProcessingImage(false);
+      }
     }
   };
 
@@ -130,33 +360,53 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const handleSave = () => {
-    if (!formData.username || !formData.name) {
-        alert("Vui lòng nhập Tên đăng nhập và Họ tên");
+    // Basic validation
+    if (!formData.name) {
+        alert("Vui lòng nhập Họ tên");
         return;
     }
 
+    let finalUsername = formData.username;
+
+    // RULE: If Role is DSA and Code exists, enforce Username = DSA Code
+    // Tự động cập nhật user là mã code nếu trường hợp chưa được cập nhật hoặc cố tình nhập sai
+    if (formData.role === 'DSA' && formData.dsaCode) {
+        finalUsername = formData.dsaCode.trim().toUpperCase();
+    } else if (!finalUsername) {
+        alert("Vui lòng nhập Tên đăng nhập");
+        return;
+    }
+
+    // Check for duplicate username (skip check if editing self and username matches)
+    const existingUser = users.find(u => u.username === finalUsername);
+    if (existingUser && (!isEditing || existingUser.id !== formData.id)) {
+        alert(`Tên đăng nhập '${finalUsername}' đã tồn tại!`);
+        return;
+    }
+
+    // Prepare Payload
+    const userPayload: any = {
+        ...formData,
+        username: finalUsername, // Apply forced username
+        role: formData.role || 'DSA',
+    };
+
     if (isEditing && formData.id) {
-        onUpdateUser(formData as User);
+        onUpdateUser(cleanUser(userPayload));
         resetForm();
     } else {
-        if (users.some(u => u.username === formData.username)) {
-            alert("Tên đăng nhập đã tồn tại!");
-            return;
-        }
-
-        onAddUser({
-            ...formData,
-            role: formData.role || 'DSA',
-            id: Math.random().toString(36).substr(2, 9),
-        } as User);
+        // Fix for 100+ concurrent users: Use current timestamp + random string to avoid ID collisions
+        userPayload.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        onAddUser(cleanUser(userPayload));
         resetForm();
     }
   };
 
   const openAddForm = () => {
-      setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '' });
+      setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '', phoneNumber: '' });
       setAvatarPreview(null);
       setIsEditing(false);
+      setAutoGenUsername(true); // Enable auto-gen for new users
       setShowForm(true);
   };
 
@@ -164,14 +414,70 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     setFormData({ ...user });
     setAvatarPreview(user.avatar || null);
     setIsEditing(true);
+    setAutoGenUsername(false); // Disable auto-gen for edits to prevent accidental overwrites
     setShowForm(true);
   };
 
   const resetForm = () => {
-    setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '' });
+    setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '', phoneNumber: '' });
     setAvatarPreview(null);
     setIsEditing(false);
     setShowForm(false);
+  };
+
+  // --- CONFIRMATION HANDLERS ---
+
+  const initiateSingleDelete = (user: User) => {
+      setDeleteConfirm({
+          isOpen: true,
+          type: 'single',
+          data: user.id,
+          message: `Bạn có chắc chắn muốn xóa nhân viên "${user.name}"?`,
+          subMessage: 'Hành động này không thể hoàn tác. Dữ liệu liên quan có thể bị ảnh hưởng.'
+      });
+  };
+
+  const initiateBulkDelete = () => {
+      // Filter out IDs that the current user CANNOT delete based on hierarchy
+      const allowedIds = Array.from(selectedIds).filter(id => {
+          const target = users.find(u => u.id === id);
+          return target && canDeleteUser(target);
+      });
+
+      if (allowedIds.length === 0) {
+          alert("Bạn không có quyền xóa bất kỳ người dùng nào đã chọn (chỉ được xóa nhân sự cấp dưới trực tiếp hoặc gián tiếp).");
+          return;
+      }
+
+      const skippedCount = selectedIds.size - allowedIds.length;
+      let subMsg = '';
+      if (skippedCount > 0) {
+          subMsg = `(Lưu ý: ${skippedCount} nhân viên không thuộc quyền quản lý của bạn sẽ bị bỏ qua)`;
+      }
+
+      setDeleteConfirm({
+          isOpen: true,
+          type: 'bulk',
+          data: allowedIds,
+          message: `Bạn có chắc chắn muốn xóa ${allowedIds.length} nhân viên đã chọn?`,
+          subMessage: subMsg
+      });
+  };
+
+  const handleConfirmDelete = () => {
+      if (!deleteConfirm) return;
+
+      if (deleteConfirm.type === 'single') {
+          onDeleteUser(deleteConfirm.data);
+      } else if (deleteConfirm.type === 'bulk') {
+          if (onBulkDeleteUsers) {
+              onBulkDeleteUsers(deleteConfirm.data);
+          } else {
+              deleteConfirm.data.forEach((id: string) => onDeleteUser(id));
+          }
+          setSelectedIds(new Set());
+      }
+      setDeleteConfirm(null);
   };
 
   // --- BULK ACTIONS ---
@@ -195,25 +501,29 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     setSelectedIds(newSet);
   };
 
-  const handleBulkDelete = () => {
-    if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.size} nhân viên đã chọn?`)) {
-      selectedIds.forEach(id => onDeleteUser(id));
-      setSelectedIds(new Set());
-    }
-  };
-
   const handleBulkAssign = () => {
      if (!bulkManagerId) {
        alert("Vui lòng chọn người quản lý mới!");
        return;
      }
-     selectedIds.forEach(id => {
+     // Check if user has permission to update these users (similar to delete)
+     const allowedIds = Array.from(selectedIds).filter(id => {
+        const target = users.find(u => u.id === id);
+        return target && canDeleteUser(target); // Reusing logic: if you can delete (manage), you can reassign
+     });
+
+     if (allowedIds.length === 0) {
+         alert("Bạn không có quyền thay đổi quản lý cho các user đã chọn.");
+         return;
+     }
+
+     allowedIds.forEach(id => {
         const user = users.find(u => u.id === id);
         if (user) {
-          onUpdateUser({ ...user, parentId: bulkManagerId });
+          onUpdateUser(cleanUser({ ...user, parentId: bulkManagerId }));
         }
      });
-     alert(`Đã cập nhật quản lý cho ${selectedIds.size} nhân viên.`);
+     alert(`Đã cập nhật quản lý cho ${allowedIds.length} nhân viên.`);
      setSelectedIds(new Set());
      setShowBulkAction(false);
      setBulkManagerId('');
@@ -222,9 +532,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   // --- SMART IMPORT LOGIC ---
 
   const downloadTemplate = () => {
-    const headers = "Username (Bat buoc),Ho Va Ten (Bat buoc),Chuc Vu (DSA/DSS/SM),Ma Code (DSA Code),Username Quan Ly (VD: dss_qua)";
-    const example1 = "nguyenvana,Nguyen Van A,DSA,DA001,dss_qua";
-    const example2 = "dss_moi,Le Thi B,DSS,,sm_region1";
+    const headers = "Username (Bat buoc),Ho Va Ten (Bat buoc),Chuc Vu (DSA/DSS/SM),Ma Code (DSA Code),SDT (So Dien Thoai),Username Quan Ly";
+    const example1 = "nguyenvana,Nguyen Van A,DSA,DA001,0901234567,dss_qua";
+    const example2 = "dss_moi,Le Thi B,DSS,,0987654321,sm_region1";
     const csvContent = "\uFEFF" + headers + "\n" + example1 + "\n" + example2;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -259,32 +569,64 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
         
         const parts = line.split(',');
         if (parts.length >= 2) {
-          const username = parts[0]?.trim();
+          let username = parts[0]?.trim();
           const name = parts[1]?.trim();
           const roleRaw = parts[2]?.trim().toUpperCase();
           const dsaCode = parts[3]?.trim();
-          const managerUsername = parts[4]?.trim();
+          const phone = parts[4]?.trim();
+          const managerUsername = parts[5]?.trim();
 
           const role = ['DSA', 'DSS', 'SM', 'RSM', 'ADMIN'].includes(roleRaw) ? roleRaw as any : 'DSA';
 
+          // Force Username = DSA Code if role is DSA and Code exists
+          // Tự động cập nhật user là mã code trong quản lý nhân sự
+          if (role === 'DSA' && dsaCode) {
+              username = dsaCode.trim().toUpperCase();
+          }
+
           if (username && name) {
              const existingUser = userMap.get(username.toLowerCase());
-             let userObj: User;
-
+             
              if (existingUser) {
-                userObj = { ...existingUser, name, role, dsaCode: dsaCode || existingUser.dsaCode };
-                usersToUpdate.push(userObj);
+                // Update Logic: Merge new data, preserve old if new is missing, avoid undefined
+                const updatedFields: any = { name, role };
+                if (dsaCode) updatedFields.dsaCode = dsaCode;
+                if (phone) updatedFields.phoneNumber = phone;
+                
+                const userObj = { ...existingUser, ...updatedFields };
+                // Also ensure username matches updated DSA code if changed
+                if (role === 'DSA' && dsaCode) {
+                    userObj.username = dsaCode.trim().toUpperCase();
+                }
+
+                usersToUpdate.push(cleanUser(userObj));
              } else {
-                userObj = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    username, name, role, dsaCode: dsaCode || undefined, parentId: undefined 
+                // New User Logic: Create object without undefined keys
+                const userObj: any = {
+                    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9), // Use more robust random ID
+                    username, 
+                    name, 
+                    role
                 };
-                newUsers.push(userObj);
+                if (dsaCode) userObj.dsaCode = dsaCode;
+                if (phone) userObj.phoneNumber = phone;
+                // Note: parentId is handled later via queue
+
+                newUsers.push(userObj); // Don't clean yet, need ref for parent resolution
                 userMap.set(username.toLowerCase(), userObj);
              }
 
              if (managerUsername) {
-                 parentResolutionQueue.push({ userRef: userObj, managerUsername });
+                 const refUser = newUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+                 if (refUser) {
+                     parentResolutionQueue.push({ userRef: refUser, managerUsername });
+                 } else {
+                     // For existing user, we need to update their parentId if provided
+                     const existingUpdate = usersToUpdate.find(u => u.username.toLowerCase() === username.toLowerCase());
+                     if (existingUpdate) {
+                         parentResolutionQueue.push({ userRef: existingUpdate, managerUsername });
+                     }
+                 }
              }
           } else {
               skippedCount++;
@@ -292,12 +634,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
         }
       }
 
+      // Resolve Parents
       parentResolutionQueue.forEach(({ userRef, managerUsername }) => {
           const manager = userMap.get(managerUsername.toLowerCase());
           if (manager) userRef.parentId = manager.id;
       });
       
-      if (newUsers.length > 0) onAddUser(newUsers);
+      // Final clean for new users
+      const cleanNewUsers = newUsers.map(u => cleanUser(u));
+
+      if (cleanNewUsers.length > 0) onAddUser(cleanNewUsers);
       if (usersToUpdate.length > 0) usersToUpdate.forEach(u => onUpdateUser(u));
 
       alert(`Hoàn tất!\n- Thêm mới: ${newUsers.length}\n- Cập nhật: ${usersToUpdate.length}\n- Bỏ qua (lỗi): ${skippedCount}`);
@@ -328,11 +674,28 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const allManagers = useMemo(() => {
-     return users.filter(u => ['DSS', 'SM', 'RSM'].includes(u.role));
-  }, [users]);
+     // Use scopedUsers here too to prevent assigning to managers outside view
+     return scopedUsers.filter(u => ['DSS', 'SM', 'RSM'].includes(u.role));
+  }, [scopedUsers]);
+
+  // Table Header Cell Component with Resizer
+  const ResizableHeader = ({ colKey, label, children }: { colKey: string, label?: string, children?: React.ReactNode }) => (
+    <th 
+        className="p-4 border-b border-emerald-200 relative group select-none bg-emerald-100 text-emerald-900 font-bold uppercase text-xs tracking-wider"
+        style={{ width: colWidths[colKey], minWidth: colWidths[colKey] }}
+    >
+        <div className="flex items-center justify-between h-full">
+            <span className="truncate w-full">{label || children}</span>
+        </div>
+        <div 
+            className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-emerald-400 z-20 transition-colors opacity-0 group-hover:opacity-100"
+            onMouseDown={(e) => handleResizeStart(e, colKey)}
+        />
+    </th>
+  );
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl border-t-4 border-emerald-600 p-6 max-w-7xl mx-auto mt-6 animate-in fade-in slide-in-from-bottom-4">
+    <div className="bg-white rounded-xl shadow-2xl border-t-4 border-emerald-600 p-6 max-w-7xl mx-auto mt-6 animate-in fade-in slide-in-from-bottom-4 transition-colors duration-300 relative">
       {/* HEADER & MAIN ACTIONS */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-emerald-100 gap-4">
          <div className="flex items-center space-x-3 w-full md:w-auto">
@@ -341,23 +704,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
              </div>
              <div>
                  <h2 className="text-xl font-bold text-emerald-950">Quản lý nhân sự</h2>
-                 <p className="text-sm text-emerald-600 font-medium">Hệ thống phân quyền & tổ chức (Full Screen)</p>
+                 <p className="text-sm text-emerald-600 font-medium">Hệ thống phân quyền & tổ chức</p>
              </div>
          </div>
          
-         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-            {/* Search */}
-            <div className="relative flex-1 md:w-64">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500"/>
-                <input 
-                    type="text" 
-                    placeholder="Tìm kiếm..." 
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 bg-white border border-emerald-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 w-full outline-none"
-                />
-            </div>
-
+         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
             {/* Import Button */}
              <button 
                 onClick={() => setShowImport(true)}
@@ -379,11 +730,68 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
          </div>
       </div>
 
+      {/* --- ENHANCED FILTER BAR --- */}
+      <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 mb-4 flex flex-col md:flex-row gap-3 items-center">
+         <div className="flex items-center text-sm font-bold text-gray-500 mr-2 flex-shrink-0">
+             <Filter size={16} className="mr-1"/> Bộ lọc:
+         </div>
+         
+         {/* Search Text */}
+         <div className="relative flex-1 w-full md:max-w-xs">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input 
+                type="text" 
+                placeholder="Tìm Tên / Code / Username..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 w-full outline-none text-slate-800 shadow-sm"
+            />
+         </div>
+
+         {/* Filter Role */}
+         <div className="relative w-full md:w-40">
+            <select 
+                value={filterRole}
+                onChange={e => setFilterRole(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none text-slate-800 shadow-sm appearance-none"
+            >
+                <option value="ALL">Tất cả chức vụ</option>
+                <option value="DSA">DSA</option>
+                <option value="DSS">DSS</option>
+                <option value="SM">SM</option>
+                <option value="RSM">RSM</option>
+                <option value="ADMIN">ADMIN</option>
+            </select>
+            <Briefcase size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
+         </div>
+
+         {/* Filter Manager */}
+         <div className="relative w-full md:max-w-xs">
+            <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input 
+                type="text" 
+                placeholder="Tìm theo Quản Lý (DSS/SM)..." 
+                value={filterManager}
+                onChange={e => setFilterManager(e.target.value)}
+                className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 w-full outline-none text-slate-800 shadow-sm"
+            />
+         </div>
+         
+         {(searchTerm || filterRole !== 'ALL' || filterManager) && (
+            <button 
+                onClick={() => { setSearchTerm(''); setFilterRole('ALL'); setFilterManager(''); }}
+                className="text-xs text-red-500 font-bold hover:underline whitespace-nowrap"
+            >
+                Xóa lọc
+            </button>
+         )}
+      </div>
+
       {/* TOOLBAR: FILTERS & BULK ACTIONS */}
       <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
             <div className="flex items-center gap-2">
                  <span className="text-sm font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                    Tổng: {filteredUsers.length}
+                    Kết quả: {filteredUsers.length}
                 </span>
 
                 {/* Column Settings */}
@@ -402,7 +810,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                                         onChange={() => setVisibleColumns(prev => ({...prev, [key]: !(prev as any)[key]}))}
                                         className="mr-3 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300"
                                     />
-                                    <span className="capitalize text-gray-700">{key === 'dss' ? 'Thuộc DSS' : key === 'sm' ? 'Thuộc SM' : key}</span>
+                                    <span className="capitalize text-gray-700">{key === 'dss' ? 'Thuộc DSS' : key === 'sm' ? 'Thuộc SM' : key === 'phone' ? 'Số ĐT' : key}</span>
                                 </label>
                             ))}
                         </div>
@@ -436,7 +844,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                             <button onClick={() => setShowBulkAction(true)} className="text-emerald-700 hover:bg-emerald-100 px-2 py-1 rounded text-xs font-bold flex items-center">
                                 <Users size={14} className="mr-1"/> Phân quyền
                             </button>
-                            <button onClick={handleBulkDelete} className="text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold flex items-center">
+                            <button onClick={initiateBulkDelete} className="text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold flex items-center">
                                 <Trash2 size={14} className="mr-1"/> Xóa
                             </button>
                             <button onClick={() => setSelectedIds(new Set())} className="text-gray-400 hover:text-gray-600 ml-2"><X size={14}/></button>
@@ -448,23 +856,24 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
 
       {/* FULL WIDTH TABLE */}
       <div className="bg-white border border-emerald-100 rounded-xl shadow-sm overflow-hidden flex flex-col h-[65vh]">
-            <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
-            <table className="w-full text-sm text-left relative">
-                <thead className="bg-emerald-100 text-emerald-900 font-bold sticky top-0 z-10 shadow-sm uppercase text-xs tracking-wider">
+            <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1 relative">
+            <table className="text-sm text-left relative table-fixed" style={{ width: 'max-content' }}>
+                <thead className="bg-emerald-100 sticky top-0 z-10 shadow-sm">
                 <tr>
-                    <th className="p-4 w-12 text-center border-b border-emerald-200">
+                    <th className="p-4 text-center border-b border-emerald-200" style={{ width: colWidths.checkbox }}>
                         <button onClick={toggleSelectAll} className="hover:text-emerald-700 transition-colors">
                             {selectedIds.size > 0 && selectedIds.size === filteredUsers.length ? <CheckSquare size={18}/> : <Square size={18}/>}
                         </button>
                     </th>
-                    {visibleColumns.avatar && <th className="p-4 w-16 border-b border-emerald-200">Ảnh</th>}
-                    {visibleColumns.username && <th className="p-4 min-w-[150px] border-b border-emerald-200">Username</th>}
-                    {visibleColumns.name && <th className="p-4 min-w-[200px] border-b border-emerald-200">Tên hiển thị</th>}
-                    {visibleColumns.role && <th className="p-4 w-32 border-b border-emerald-200">Chức vụ</th>}
-                    {visibleColumns.code && <th className="p-4 w-32 border-b border-emerald-200">Code</th>}
-                    {visibleColumns.dss && <th className="p-4 min-w-[180px] border-l border-b border-emerald-200">Trực thuộc DSS</th>}
-                    {visibleColumns.sm && <th className="p-4 min-w-[150px] border-l border-b border-emerald-200">Trực thuộc SM</th>}
-                    <th className="p-4 text-right w-24 border-b border-emerald-200">Thao tác</th>
+                    {visibleColumns.avatar && <ResizableHeader colKey="avatar" label="Ảnh" />}
+                    {visibleColumns.username && <ResizableHeader colKey="username" label="Username" />}
+                    {visibleColumns.name && <ResizableHeader colKey="name" label="Tên hiển thị" />}
+                    {visibleColumns.phone && <ResizableHeader colKey="phone" label="Số ĐT" />}
+                    {visibleColumns.role && <ResizableHeader colKey="role" label="Chức vụ" />}
+                    {visibleColumns.code && <ResizableHeader colKey="code" label="Code" />}
+                    {visibleColumns.dss && <ResizableHeader colKey="dss" label="Trực thuộc DSS" />}
+                    {visibleColumns.sm && <ResizableHeader colKey="sm" label="Trực thuộc SM" />}
+                    <ResizableHeader colKey="actions" label="Thao tác" />
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
@@ -474,7 +883,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                     
                     return (
                     <tr key={u.id} className={`transition-all duration-200 group ${isSelected ? 'bg-emerald-50/60' : 'bg-white hover:bg-emerald-50/30'}`}>
-                        <td className="p-4 text-center">
+                        <td className="p-4 text-center truncate">
                             <button onClick={() => toggleSelectRow(u.id)} className={`${isSelected ? 'text-emerald-600' : 'text-emerald-200 hover:text-emerald-500'}`}>
                                 {isSelected ? <CheckSquare size={18}/> : <Square size={18}/>}
                             </button>
@@ -490,22 +899,23 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                               )}
                            </td>
                         )}
-                        {visibleColumns.username && <td className="p-4 font-semibold text-gray-800">{u.username}</td>}
-                        {visibleColumns.name && <td className="p-4 font-bold text-emerald-900">{u.name}</td>}
+                        {visibleColumns.username && <td className="p-4 font-semibold text-gray-800 truncate" title={u.username}>{u.username}</td>}
+                        {visibleColumns.name && <td className="p-4 font-bold text-emerald-900 truncate" title={u.name}>{u.name}</td>}
+                        {visibleColumns.phone && <td className="p-4 text-gray-700 font-mono text-xs truncate">{u.phoneNumber || '-'}</td>}
                         {visibleColumns.role && (
-                            <td className="p-4">
+                            <td className="p-4 truncate">
                                 <span className={`px-2.5 py-1 rounded-md text-xs border font-bold shadow-sm ${u.role === 'ADMIN' ? 'bg-white text-red-700 border-red-200' : u.role === 'SM' ? 'bg-white text-blue-700 border-blue-200' : u.role === 'DSS' ? 'bg-white text-purple-700 border-purple-200' : 'bg-white text-gray-600 border-gray-200'}`}>
                                     {u.role}
                                 </span>
                             </td>
                         )}
-                        {visibleColumns.code && <td className="p-4 text-gray-500 font-mono text-xs">{u.dsaCode || '-'}</td>}
-                        {visibleColumns.dss && <td className="p-4 text-purple-700 font-medium text-xs border-l border-emerald-50">{dssName}</td>}
-                        {visibleColumns.sm && <td className="p-4 text-blue-700 font-medium text-xs border-l border-emerald-50">{smName}</td>}
+                        {visibleColumns.code && <td className="p-4 text-gray-500 font-mono text-xs truncate">{u.dsaCode || '-'}</td>}
+                        {visibleColumns.dss && <td className="p-4 text-purple-700 font-medium text-xs border-l border-emerald-50 truncate" title={dssName}>{dssName}</td>}
+                        {visibleColumns.sm && <td className="p-4 text-blue-700 font-medium text-xs border-l border-emerald-50 truncate" title={smName}>{smName}</td>}
 
                         <td className="p-4 text-right">
                             <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {canManageUsers && u.role !== 'ADMIN' && (
+                                {canAccessManagement && (
                                     <>
                                         <button 
                                             onClick={() => openEditForm(u)} 
@@ -514,15 +924,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                                         >
                                             <Pencil size={14} />
                                         </button>
-                                        <button 
-                                            onClick={() => {
-                                                if (window.confirm(`Xóa ${u.name}?`)) onDeleteUser(u.id);
-                                            }} 
-                                            className="p-2 rounded-lg bg-white border border-red-200 text-red-500 hover:bg-red-50 shadow-sm" 
-                                            title="Xóa"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                        
+                                        {canDeleteUser(u) && (
+                                            <button 
+                                                onClick={() => initiateSingleDelete(u)} 
+                                                className="p-2 rounded-lg bg-white border border-red-200 text-red-500 hover:bg-red-50 shadow-sm" 
+                                                title="Xóa"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -534,7 +945,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                     <tr>
                         <td colSpan={10} className="p-12 text-center text-gray-400 italic bg-white">
                             <Users size={48} className="mx-auto text-emerald-100 mb-2"/>
-                            Không tìm thấy nhân viên nào phù hợp.
+                            Không tìm thấy nhân viên nào phù hợp với bộ lọc.
                         </td>
                     </tr>
                 )}
@@ -542,6 +953,42 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             </table>
             </div>
       </div>
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {deleteConfirm && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border-2 border-red-100">
+                  <div className="bg-red-50 p-6 flex flex-col items-center text-center border-b border-red-100">
+                      <div className="bg-red-100 p-3 rounded-full mb-4">
+                          <AlertTriangle className="text-red-600" size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-red-800 mb-2">Xác nhận xóa dữ liệu?</h3>
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                          {deleteConfirm.message}
+                      </p>
+                      {deleteConfirm.subMessage && (
+                          <p className="text-xs text-orange-600 mt-2 font-medium bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
+                              {deleteConfirm.subMessage}
+                          </p>
+                      )}
+                  </div>
+                  <div className="p-4 flex gap-3 bg-white">
+                      <button 
+                          onClick={() => setDeleteConfirm(null)} 
+                          className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+                      >
+                          Hủy bỏ
+                      </button>
+                      <button 
+                          onClick={handleConfirmDelete} 
+                          className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-200 transition-all transform active:scale-95 flex items-center justify-center"
+                      >
+                          <Trash2 size={18} className="mr-2"/> Xóa ngay
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* --- MODAL: ADD / EDIT FORM --- */}
       {showForm && (
@@ -557,42 +1004,60 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
 
                    <div className="p-6 space-y-5">
                        {/* Form Fields - White Backgrounds, Colored Borders */}
-                       <div className="flex justify-center mb-4">
-                          <div className="relative group cursor-pointer">
+                       <div className="flex flex-col items-center mb-4">
+                          <div className="relative group cursor-pointer mb-2">
                              <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" id="avatarUpload" />
                              <label htmlFor="avatarUpload" className="cursor-pointer block">
                                 {avatarPreview ? (
                                    <img src={avatarPreview} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md" />
                                 ) : (
                                    <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300">
-                                      <Camera size={32} />
+                                      {isProcessingImage ? <RefreshCw className="animate-spin" /> : <Camera size={32} />}
                                    </div>
                                 )}
                                 <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold">
                                    Đổi Ảnh
                                 </div>
                              </label>
-                             {avatarPreview && (
-                                <button 
-                                    onClick={handleRemoveAvatar}
-                                    className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full shadow hover:bg-red-600 transition-colors z-10"
-                                    title="Xóa ảnh"
-                                >
-                                    <X size={12} />
-                                </button>
-                             )}
                           </div>
+                          
+                          {avatarPreview && (
+                            <button 
+                                onClick={handleRemoveAvatar}
+                                className="text-xs text-red-500 font-bold hover:bg-red-50 px-3 py-1 rounded-full border border-red-200 transition-colors"
+                            >
+                                Xóa ảnh
+                            </button>
+                          )}
                        </div>
 
                        <div>
-                            <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Tên đăng nhập <span className="text-red-500">*</span></label>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Tên đăng nhập <span className="text-red-500">*</span></label>
+                                {!isEditing && (
+                                    <label className="flex items-center text-xs cursor-pointer text-emerald-600 font-medium">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={autoGenUsername}
+                                            onChange={() => setAutoGenUsername(!autoGenUsername)}
+                                            className="mr-1 rounded text-emerald-500 focus:ring-emerald-500"
+                                        />
+                                        <Wand2 size={12} className="mr-1"/> Tự động tạo
+                                    </label>
+                                )}
+                            </div>
                             <input 
                                 className={`block w-full rounded-lg border p-3 text-sm outline-none transition-all ${isEditing ? 'bg-gray-50 text-gray-500 border-gray-200' : 'bg-white border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50'}`}
                                 value={formData.username || ''}
                                 onChange={e => setFormData({...formData, username: e.target.value})}
-                                readOnly={isEditing}
-                                placeholder="VD: nguyenvan_a"
+                                readOnly={isEditing || autoGenUsername}
+                                placeholder={autoGenUsername ? "Tự động tạo theo quy tắc..." : "VD: nguyenvan_a"}
                             />
+                            {autoGenUsername && (
+                                <p className="text-[10px] text-emerald-600 mt-1 italic">
+                                    * DSA: Mã code (VD: DA013631) | Manager: Tên viết liền (VD: buicongqua)
+                                </p>
+                            )}
                         </div>
                         <div>
                             <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Họ và Tên <span className="text-red-500">*</span></label>
@@ -606,17 +1071,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                         
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Chức vụ</label>
-                                <select 
-                                    className="block w-full rounded-lg border border-emerald-200 p-3 text-sm bg-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 text-gray-800 font-medium"
-                                    value={formData.role || 'DSA'} 
-                                    onChange={e => setFormData({...formData, role: e.target.value as any, parentId: ''})}
-                                >
-                                    <option value="DSA">DSA (Sales)</option>
-                                    <option value="DSS">DSS (Giám sát)</option>
-                                    <option value="SM">SM (Quản lý)</option>
-                                    <option value="RSM">RSM (Giám đốc)</option>
-                                </select>
+                                <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Số Điện Thoại (Zalo)</label>
+                                <input 
+                                    className="block w-full rounded-lg border border-emerald-200 p-3 text-sm bg-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 placeholder-gray-400 font-medium"
+                                    value={formData.phoneNumber || ''}
+                                    onChange={e => setFormData({...formData, phoneNumber: e.target.value})}
+                                    placeholder="VD: 0987654321"
+                                />
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">DSA Code</label>
@@ -627,6 +1088,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                                     placeholder="DA..."
                                 />
                             </div>
+                        </div>
+
+                         <div>
+                            <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Chức vụ</label>
+                            <select 
+                                className="block w-full rounded-lg border border-emerald-200 p-3 text-sm bg-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 text-gray-800 font-medium"
+                                value={formData.role || 'DSA'} 
+                                onChange={e => setFormData({...formData, role: e.target.value as any, parentId: ''})}
+                            >
+                                <option value="DSA">DSA (Sales)</option>
+                                <option value="DSS">DSS (Giám sát)</option>
+                                <option value="SM">SM (Quản lý)</option>
+                                <option value="RSM">RSM (Giám đốc)</option>
+                            </select>
                         </div>
 
                         {['DSA', 'DSS', 'SM'].includes(formData.role || 'DSA') && (
@@ -649,9 +1124,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                              <button onClick={resetForm} className="flex-1 py-3 rounded-lg border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-colors">Hủy</button>
                              <button 
                                 onClick={handleSave}
-                                disabled={!canManageUsers}
-                                className={`flex-[2] text-white rounded-lg py-3 text-sm font-bold shadow-lg flex items-center justify-center transition-all transform hover:scale-[1.02] active:scale-95 ${isEditing ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}
+                                disabled={!canAccessManagement || isProcessingImage}
+                                className={`flex-[2] text-white rounded-lg py-3 text-sm font-bold shadow-lg flex items-center justify-center transition-all transform hover:scale-[1.02] active:scale-95 ${isEditing ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-emerald-600 to-teal-600'} disabled:opacity-50 disabled:cursor-wait`}
                                 >
+                                {isProcessingImage ? <RefreshCw className="animate-spin mr-2" size={16}/> : null}
                                 {isEditing ? 'Cập Nhật' : 'Lưu Nhân Viên'}
                             </button>
                         </div>
@@ -681,7 +1157,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                            </button>
                            
                            <div className="relative group">
-                                <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} disabled={!canManageUsers} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"/>
+                                <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} disabled={!canAccessManagement} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"/>
                                 <button className="w-full bg-emerald-600 text-white rounded-lg p-3 text-sm font-bold group-hover:bg-emerald-700 transition-colors shadow-md flex items-center justify-center">
                                     <Upload size={16} className="mr-2"/> Chọn File & Tải Lên
                                 </button>

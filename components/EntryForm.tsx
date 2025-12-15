@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SalesRecord, User } from '../types';
-import { X, Save, Upload, Image as ImageIcon, UserCheck, Send } from 'lucide-react';
+import { X, Save, UserCheck, Send, Loader2 } from 'lucide-react';
 
 interface EntryFormProps {
   onClose: () => void;
@@ -74,6 +74,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     directLoan: 0,
     directAppCRC: 0,
     directLoanCRC: 0,
+    directAppFEOL: 0,
+    directLoanFEOL: 0,
+    directVolumeFEOL: 0,
     onlineApp: 0,
     onlineVolume: 0,
     ctv: 0,
@@ -87,17 +90,19 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
   };
 
   const [formData, setFormData] = useState<Partial<SalesRecord>>(defaultState);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Load initial data if editing
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
-      if (initialData.proofImage) {
-        setImagePreview(initialData.proofImage);
-      }
     }
   }, [initialData]);
+
+  // Get currently selected user to show avatar
+  const selectedUser = useMemo(() => {
+      if (isDSALogin) return currentUser;
+      return users.find(u => u.dsaCode === formData.dsaCode && u.role === 'DSA');
+  }, [formData.dsaCode, users, currentUser, isDSALogin]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -147,19 +152,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     return new Intl.NumberFormat('vi-VN').format(val);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setImagePreview(base64);
-        setFormData(prev => ({ ...prev, proofImage: base64 }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -198,9 +190,14 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
       <div className="bg-white w-full max-w-md h-full shadow-2xl overflow-y-auto animate-slide-in-right">
         <div className={`p-4 border-b flex justify-between items-center text-white sticky top-0 z-20 ${isEditing && isDSALogin ? 'bg-orange-600' : 'bg-emerald-700'}`}>
-          <div>
-            <h2 className="text-lg font-bold">{isEditing ? 'Chỉnh Sửa Báo Cáo' : 'Cập Nhật Tiến Độ'}</h2>
-            {isEditing && isDSALogin && <span className="text-xs bg-white/20 px-2 py-0.5 rounded">Cần duyệt bởi DSS</span>}
+          <div className="flex items-center space-x-3">
+             {selectedUser?.avatar && (
+                 <img src={selectedUser.avatar} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-white/50 object-cover" />
+             )}
+             <div>
+                <h2 className="text-lg font-bold">{isEditing ? 'Chỉnh Sửa Báo Cáo' : 'Cập Nhật Tiến Độ'}</h2>
+                {isEditing && isDSALogin && <span className="text-xs bg-white/20 px-2 py-0.5 rounded">Cần duyệt bởi DSS</span>}
+             </div>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded">
             <X size={24} />
@@ -332,6 +329,38 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
                 />
               </div>
 
+              {/* FEOL Products - Purple */}
+              <div className="bg-purple-50 p-2 rounded border border-purple-100 shadow-sm">
+                <label className="block text-xs font-bold text-purple-800">App FEOL</label>
+                <input 
+                   type="number" 
+                   name="directAppFEOL" 
+                   value={formData.directAppFEOL} 
+                   onChange={handleChange} 
+                   className="mt-1 block w-full rounded-md border-purple-200 border p-2 bg-white focus:border-purple-500 focus:ring-purple-500" 
+                />
+              </div>
+              <div className="bg-purple-50 p-2 rounded border border-purple-100 shadow-sm">
+                <label className="block text-xs font-bold text-purple-800">Loan FEOL</label>
+                <input 
+                   type="number" 
+                   name="directLoanFEOL" 
+                   value={formData.directLoanFEOL} 
+                   onChange={handleChange} 
+                   className="mt-1 block w-full rounded-md border-purple-200 border p-2 bg-white focus:border-purple-500 focus:ring-purple-500" 
+                />
+              </div>
+              <div className="col-span-2 bg-purple-50 p-2 rounded border border-purple-100 shadow-sm">
+                <label className="block text-xs font-bold text-purple-800">Volume FEOL (VND)</label>
+                <input 
+                  type="text" 
+                  name="directVolumeFEOL" 
+                  value={formatValue(formData.directVolumeFEOL)} 
+                  onChange={handleCurrencyChange} 
+                  className="mt-1 block w-full rounded-md border-purple-200 border p-2 bg-white font-bold text-purple-900 focus:border-purple-500 focus:ring-purple-500" 
+                />
+              </div>
+
               {/* Volume Money - Teal */}
               <div className="bg-teal-50 p-2 rounded border border-teal-100 shadow-sm">
                 <label className="block text-xs font-bold text-teal-800">Volume (VND)</label>
@@ -404,36 +433,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
                   className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white font-bold text-amber-900 focus:border-amber-500 focus:ring-amber-500" 
                 />
               </div>
-            </div>
-          </div>
-          
-           {/* Image Upload Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-indigo-800 uppercase border-b border-indigo-200 pb-1">Hình ảnh hoạt động</h3>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-emerald-500 transition-colors bg-gray-50">
-               <input 
-                 type="file" 
-                 id="proofImage" 
-                 accept="image/*" 
-                 onChange={handleImageUpload}
-                 className="hidden" 
-               />
-               <label htmlFor="proofImage" className="cursor-pointer flex flex-col items-center justify-center">
-                 {imagePreview ? (
-                   <div className="relative w-full">
-                     <img src={imagePreview} alt="Preview" className="max-h-48 rounded-md mx-auto object-contain shadow-sm" />
-                     <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded hover:bg-black/70 transition-colors">Thay đổi</div>
-                   </div>
-                 ) : (
-                   <>
-                     <div className="bg-emerald-100 p-3 rounded-full mb-3">
-                         <Upload className="text-emerald-600" size={24} />
-                     </div>
-                     <span className="text-sm text-gray-700 font-bold">Tải lên hình ảnh báo cáo</span>
-                     <span className="text-xs text-gray-400 mt-1">Hỗ trợ JPG, PNG (Max 5MB)</span>
-                   </>
-                 )}
-               </label>
             </div>
           </div>
 
