@@ -327,9 +327,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                     reject(new Error("Canvas context failed"));
                 }
             };
-            img.onerror = (err) => reject(err);
+            // FIX: Reject with Error object, NOT Event
+            img.onerror = () => reject(new Error("Image loading failed"));
         };
-        reader.onerror = (err) => reject(err);
+        // FIX: Reject with Error object, NOT Event
+        reader.onerror = () => reject(new Error("File reading failed"));
     });
   };
 
@@ -681,7 +683,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   // Table Header Cell Component with Resizer
   const ResizableHeader = ({ colKey, label, children }: { colKey: string, label?: string, children?: React.ReactNode }) => (
     <th 
-        className="p-4 border-b border-emerald-200 relative group select-none bg-emerald-100 text-emerald-900 font-bold uppercase text-xs tracking-wider"
+        className="p-4 border-b border-emerald-200 dark:border-emerald-800 relative group select-none bg-emerald-100 dark:bg-emerald-900/50 text-emerald-900 dark:text-emerald-300 font-bold uppercase text-xs tracking-wider"
         style={{ width: colWidths[colKey], minWidth: colWidths[colKey] }}
     >
         <div className="flex items-center justify-between h-full">
@@ -695,16 +697,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   );
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl border-t-4 border-emerald-600 p-6 max-w-7xl mx-auto mt-6 animate-in fade-in slide-in-from-bottom-4 transition-colors duration-300 relative">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-t-4 border-emerald-600 p-6 max-w-7xl mx-auto mt-6 animate-in fade-in slide-in-from-bottom-4 transition-colors duration-300 relative">
       {/* HEADER & MAIN ACTIONS */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-emerald-100 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-emerald-100 dark:border-emerald-900 gap-4">
          <div className="flex items-center space-x-3 w-full md:w-auto">
-             <div className="bg-emerald-100 p-2 rounded-lg text-emerald-700">
+             <div className="bg-emerald-100 dark:bg-emerald-900/50 p-2 rounded-lg text-emerald-700 dark:text-emerald-400">
                 <Shield size={28} />
              </div>
              <div>
-                 <h2 className="text-xl font-bold text-emerald-950">Quản lý nhân sự</h2>
-                 <p className="text-sm text-emerald-600 font-medium">Hệ thống phân quyền & tổ chức</p>
+                 <h2 className="text-xl font-bold text-emerald-950 dark:text-emerald-100">Quản lý nhân sự</h2>
+                 <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Hệ thống phân quyền & tổ chức</p>
              </div>
          </div>
          
@@ -712,7 +714,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             {/* Import Button */}
              <button 
                 onClick={() => setShowImport(true)}
-                className="p-2 text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 rounded-lg transition-colors"
+                className="p-2 text-emerald-700 dark:text-emerald-400 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
                 title="Import Excel"
             >
                 <FileUp size={20} />
@@ -731,8 +733,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       </div>
 
       {/* --- ENHANCED FILTER BAR --- */}
-      <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 mb-4 flex flex-col md:flex-row gap-3 items-center">
-         <div className="flex items-center text-sm font-bold text-gray-500 mr-2 flex-shrink-0">
+      <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-lg p-3 mb-4 flex flex-col md:flex-row gap-3 items-center">
+         <div className="flex items-center text-sm font-bold text-gray-500 dark:text-gray-400 mr-2 flex-shrink-0">
              <Filter size={16} className="mr-1"/> Bộ lọc:
          </div>
          
@@ -744,7 +746,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                 placeholder="Tìm Tên / Code / Username..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 w-full outline-none text-slate-800 shadow-sm"
+                className="pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 w-full outline-none text-slate-800 dark:text-gray-200 shadow-sm placeholder-gray-400 dark:placeholder-gray-500"
             />
          </div>
 
@@ -753,7 +755,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             <select 
                 value={filterRole}
                 onChange={e => setFilterRole(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none text-slate-800 shadow-sm appearance-none"
+                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none text-slate-800 dark:text-gray-200 shadow-sm appearance-none"
             >
                 <option value="ALL">Tất cả chức vụ</option>
                 <option value="DSA">DSA</option>
@@ -773,7 +775,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                 placeholder="Tìm theo Quản Lý (DSS/SM)..." 
                 value={filterManager}
                 onChange={e => setFilterManager(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 w-full outline-none text-slate-800 shadow-sm"
+                className="pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 w-full outline-none text-slate-800 dark:text-gray-200 shadow-sm placeholder-gray-400 dark:placeholder-gray-500"
             />
          </div>
          
@@ -790,27 +792,27 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       {/* TOOLBAR: FILTERS & BULK ACTIONS */}
       <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
             <div className="flex items-center gap-2">
-                 <span className="text-sm font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                 <span className="text-sm font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-800">
                     Kết quả: {filteredUsers.length}
                 </span>
 
                 {/* Column Settings */}
                 <div className="relative">
-                    <button onClick={() => setShowColumnSettings(!showColumnSettings)} className="p-1.5 bg-white border border-emerald-200 rounded text-emerald-600 hover:bg-emerald-50" title="Cài đặt cột">
+                    <button onClick={() => setShowColumnSettings(!showColumnSettings)} className="p-1.5 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-800 rounded text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30" title="Cài đặt cột">
                         <Settings size={16} />
                     </button>
                     {showColumnSettings && (
-                        <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-emerald-100 shadow-xl rounded-xl z-20 p-3 text-sm animate-in fade-in zoom-in-95">
-                            <div className="font-bold mb-2 border-b border-emerald-100 pb-2 text-emerald-800">Hiển thị cột</div>
+                        <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-gray-700 border border-emerald-100 dark:border-emerald-900 shadow-xl rounded-xl z-20 p-3 text-sm animate-in fade-in zoom-in-95">
+                            <div className="font-bold mb-2 border-b border-emerald-100 dark:border-emerald-900 pb-2 text-emerald-800 dark:text-emerald-300">Hiển thị cột</div>
                             {Object.keys(visibleColumns).map(key => (
-                                <label key={key} className="flex items-center p-2 hover:bg-emerald-50 rounded cursor-pointer transition-colors">
+                                <label key={key} className="flex items-center p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded cursor-pointer transition-colors">
                                     <input 
                                         type="checkbox" 
                                         checked={(visibleColumns as any)[key]} 
                                         onChange={() => setVisibleColumns(prev => ({...prev, [key]: !(prev as any)[key]}))}
-                                        className="mr-3 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300"
+                                        className="mr-3 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                                     />
-                                    <span className="capitalize text-gray-700">{key === 'dss' ? 'Thuộc DSS' : key === 'sm' ? 'Thuộc SM' : key === 'phone' ? 'Số ĐT' : key}</span>
+                                    <span className="capitalize text-gray-700 dark:text-gray-300">{key === 'dss' ? 'Thuộc DSS' : key === 'sm' ? 'Thuộc SM' : key === 'phone' ? 'Số ĐT' : key}</span>
                                 </label>
                             ))}
                         </div>
@@ -820,14 +822,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
 
             {/* Bulk Action Bar */}
             {selectedIds.size > 0 && (
-                <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center shadow-sm animate-in fade-in slide-in-from-right-2">
-                    <CheckCircle size={16} className="mr-2 text-emerald-600"/>
-                    <span className="font-bold text-emerald-900 text-sm mr-4">{selectedIds.size} chọn</span>
+                <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-lg flex items-center shadow-sm animate-in fade-in slide-in-from-right-2">
+                    <CheckCircle size={16} className="mr-2 text-emerald-600 dark:text-emerald-400"/>
+                    <span className="font-bold text-emerald-900 dark:text-emerald-300 text-sm mr-4">{selectedIds.size} chọn</span>
                     
                     {showBulkAction ? (
                         <div className="flex items-center space-x-2">
                             <select 
-                            className="text-xs border border-emerald-300 rounded p-1 w-40 bg-white focus:ring-emerald-500"
+                            className="text-xs border border-emerald-300 dark:border-emerald-700 rounded p-1 w-40 bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-emerald-500"
                             value={bulkManagerId}
                             onChange={e => setBulkManagerId(e.target.value)}
                             >
@@ -841,10 +843,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                         </div>
                     ) : (
                         <div className="flex space-x-2">
-                            <button onClick={() => setShowBulkAction(true)} className="text-emerald-700 hover:bg-emerald-100 px-2 py-1 rounded text-xs font-bold flex items-center">
+                            <button onClick={() => setShowBulkAction(true)} className="text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 px-2 py-1 rounded text-xs font-bold flex items-center">
                                 <Users size={14} className="mr-1"/> Phân quyền
                             </button>
-                            <button onClick={initiateBulkDelete} className="text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-bold flex items-center">
+                            <button onClick={initiateBulkDelete} className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded text-xs font-bold flex items-center">
                                 <Trash2 size={14} className="mr-1"/> Xóa
                             </button>
                             <button onClick={() => setSelectedIds(new Set())} className="text-gray-400 hover:text-gray-600 ml-2"><X size={14}/></button>
@@ -855,13 +857,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       </div>
 
       {/* FULL WIDTH TABLE */}
-      <div className="bg-white border border-emerald-100 rounded-xl shadow-sm overflow-hidden flex flex-col h-[65vh]">
+      <div className="bg-white dark:bg-gray-800 border border-emerald-100 dark:border-emerald-900 rounded-xl shadow-sm overflow-hidden flex flex-col h-[65vh]">
             <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1 relative">
             <table className="text-sm text-left relative table-fixed" style={{ width: 'max-content' }}>
-                <thead className="bg-emerald-100 sticky top-0 z-10 shadow-sm">
+                <thead className="bg-emerald-100 dark:bg-emerald-900/50 sticky top-0 z-10 shadow-sm">
                 <tr>
-                    <th className="p-4 text-center border-b border-emerald-200" style={{ width: colWidths.checkbox }}>
-                        <button onClick={toggleSelectAll} className="hover:text-emerald-700 transition-colors">
+                    <th className="p-4 text-center border-b border-emerald-200 dark:border-emerald-800" style={{ width: colWidths.checkbox }}>
+                        <button onClick={toggleSelectAll} className="hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
                             {selectedIds.size > 0 && selectedIds.size === filteredUsers.length ? <CheckSquare size={18}/> : <Square size={18}/>}
                         </button>
                     </th>
@@ -876,42 +878,42 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                     <ResizableHeader colKey="actions" label="Thao tác" />
                 </tr>
                 </thead>
-                <tbody className="divide-y divide-emerald-50">
+                <tbody className="divide-y divide-emerald-50 dark:divide-emerald-900/30">
                 {filteredUsers.map((u, idx) => {
                     const { dssName, smName } = getHierarchyInfo(u);
                     const isSelected = selectedIds.has(u.id);
                     
                     return (
-                    <tr key={u.id} className={`transition-all duration-200 group ${isSelected ? 'bg-emerald-50/60' : 'bg-white hover:bg-emerald-50/30'}`}>
+                    <tr key={u.id} className={`transition-all duration-200 group ${isSelected ? 'bg-emerald-50/60 dark:bg-emerald-900/40' : 'bg-white dark:bg-gray-800 hover:bg-emerald-50/30 dark:hover:bg-emerald-900/20'}`}>
                         <td className="p-4 text-center truncate">
-                            <button onClick={() => toggleSelectRow(u.id)} className={`${isSelected ? 'text-emerald-600' : 'text-emerald-200 hover:text-emerald-500'}`}>
+                            <button onClick={() => toggleSelectRow(u.id)} className={`${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-emerald-200 dark:text-emerald-800 hover:text-emerald-500 dark:hover:text-emerald-400'}`}>
                                 {isSelected ? <CheckSquare size={18}/> : <Square size={18}/>}
                             </button>
                         </td>
                         {visibleColumns.avatar && (
                            <td className="p-4">
                               {u.avatar ? (
-                                <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover border border-emerald-100" />
+                                <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover border border-emerald-100 dark:border-emerald-800" />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                                   {u.name.charAt(0)}
                                 </div>
                               )}
                            </td>
                         )}
-                        {visibleColumns.username && <td className="p-4 font-semibold text-gray-800 truncate" title={u.username}>{u.username}</td>}
-                        {visibleColumns.name && <td className="p-4 font-bold text-emerald-900 truncate" title={u.name}>{u.name}</td>}
-                        {visibleColumns.phone && <td className="p-4 text-gray-700 font-mono text-xs truncate">{u.phoneNumber || '-'}</td>}
+                        {visibleColumns.username && <td className="p-4 font-semibold text-gray-800 dark:text-gray-200 truncate" title={u.username}>{u.username}</td>}
+                        {visibleColumns.name && <td className="p-4 font-bold text-emerald-900 dark:text-emerald-300 truncate" title={u.name}>{u.name}</td>}
+                        {visibleColumns.phone && <td className="p-4 text-gray-700 dark:text-gray-400 font-mono text-xs truncate">{u.phoneNumber || '-'}</td>}
                         {visibleColumns.role && (
                             <td className="p-4 truncate">
-                                <span className={`px-2.5 py-1 rounded-md text-xs border font-bold shadow-sm ${u.role === 'ADMIN' ? 'bg-white text-red-700 border-red-200' : u.role === 'SM' ? 'bg-white text-blue-700 border-blue-200' : u.role === 'DSS' ? 'bg-white text-purple-700 border-purple-200' : 'bg-white text-gray-600 border-gray-200'}`}>
+                                <span className={`px-2.5 py-1 rounded-md text-xs border font-bold shadow-sm ${u.role === 'ADMIN' ? 'bg-white dark:bg-gray-700 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' : u.role === 'SM' ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' : u.role === 'DSS' ? 'bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600'}`}>
                                     {u.role}
                                 </span>
                             </td>
                         )}
-                        {visibleColumns.code && <td className="p-4 text-gray-500 font-mono text-xs truncate">{u.dsaCode || '-'}</td>}
-                        {visibleColumns.dss && <td className="p-4 text-purple-700 font-medium text-xs border-l border-emerald-50 truncate" title={dssName}>{dssName}</td>}
-                        {visibleColumns.sm && <td className="p-4 text-blue-700 font-medium text-xs border-l border-emerald-50 truncate" title={smName}>{smName}</td>}
+                        {visibleColumns.code && <td className="p-4 text-gray-500 dark:text-gray-400 font-mono text-xs truncate">{u.dsaCode || '-'}</td>}
+                        {visibleColumns.dss && <td className="p-4 text-purple-700 dark:text-purple-400 font-medium text-xs border-l border-emerald-50 dark:border-emerald-900/30 truncate" title={dssName}>{dssName}</td>}
+                        {visibleColumns.sm && <td className="p-4 text-blue-700 dark:text-blue-400 font-medium text-xs border-l border-emerald-50 dark:border-emerald-900/30 truncate" title={smName}>{smName}</td>}
 
                         <td className="p-4 text-right">
                             <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -919,7 +921,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                                     <>
                                         <button 
                                             onClick={() => openEditForm(u)} 
-                                            className="p-2 rounded-lg bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 shadow-sm"
+                                            className="p-2 rounded-lg bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 shadow-sm"
                                             title="Chỉnh sửa"
                                         >
                                             <Pencil size={14} />
@@ -928,7 +930,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                                         {canDeleteUser(u) && (
                                             <button 
                                                 onClick={() => initiateSingleDelete(u)} 
-                                                className="p-2 rounded-lg bg-white border border-red-200 text-red-500 hover:bg-red-50 shadow-sm" 
+                                                className="p-2 rounded-lg bg-white dark:bg-gray-700 border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 shadow-sm" 
                                                 title="Xóa"
                                             >
                                                 <Trash2 size={14} />
@@ -943,8 +945,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                 })}
                 {filteredUsers.length === 0 && (
                     <tr>
-                        <td colSpan={10} className="p-12 text-center text-gray-400 italic bg-white">
-                            <Users size={48} className="mx-auto text-emerald-100 mb-2"/>
+                        <td colSpan={10} className="p-12 text-center text-gray-400 italic bg-white dark:bg-gray-800">
+                            <Users size={48} className="mx-auto text-emerald-100 dark:text-emerald-900 mb-2"/>
                             Không tìm thấy nhân viên nào phù hợp với bộ lọc.
                         </td>
                     </tr>
@@ -957,31 +959,31 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       {/* --- CONFIRMATION MODAL --- */}
       {deleteConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border-2 border-red-100">
-                  <div className="bg-red-50 p-6 flex flex-col items-center text-center border-b border-red-100">
-                      <div className="bg-red-100 p-3 rounded-full mb-4">
-                          <AlertTriangle className="text-red-600" size={32} />
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border-2 border-red-100 dark:border-red-900">
+                  <div className="bg-red-50 dark:bg-red-900/30 p-6 flex flex-col items-center text-center border-b border-red-100 dark:border-red-900">
+                      <div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-full mb-4">
+                          <AlertTriangle className="text-red-600 dark:text-red-400" size={32} />
                       </div>
-                      <h3 className="text-xl font-bold text-red-800 mb-2">Xác nhận xóa dữ liệu?</h3>
-                      <p className="text-gray-600 text-sm leading-relaxed">
+                      <h3 className="text-xl font-bold text-red-800 dark:text-red-300 mb-2">Xác nhận xóa dữ liệu?</h3>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
                           {deleteConfirm.message}
                       </p>
                       {deleteConfirm.subMessage && (
-                          <p className="text-xs text-orange-600 mt-2 font-medium bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-2 font-medium bg-orange-50 dark:bg-orange-900/30 px-3 py-1 rounded-full border border-orange-100 dark:border-orange-800">
                               {deleteConfirm.subMessage}
                           </p>
                       )}
                   </div>
-                  <div className="p-4 flex gap-3 bg-white">
+                  <div className="p-4 flex gap-3 bg-white dark:bg-gray-800">
                       <button 
                           onClick={() => setDeleteConfirm(null)} 
-                          className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+                          className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                           Hủy bỏ
                       </button>
                       <button 
                           onClick={handleConfirmDelete} 
-                          className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-200 transition-all transform active:scale-95 flex items-center justify-center"
+                          className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-200 dark:shadow-none transition-all transform active:scale-95 flex items-center justify-center"
                       >
                           <Trash2 size={18} className="mr-2"/> Xóa ngay
                       </button>
@@ -993,7 +995,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       {/* --- MODAL: ADD / EDIT FORM --- */}
       {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-100 max-h-[90vh] overflow-y-auto">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-100 dark:border-emerald-900 max-h-[90vh] overflow-y-auto custom-scrollbar">
                    <div className={`p-4 flex items-center justify-between ${isEditing ? 'bg-gradient-to-r from-orange-500 to-amber-500' : 'bg-gradient-to-r from-emerald-600 to-teal-600'} text-white`}>
                         <div className="flex items-center font-bold text-lg">
                             {isEditing ? <Pencil size={20} className="mr-2"/> : <UserPlus size={20} className="mr-2"/>}
@@ -1009,9 +1011,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                              <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" id="avatarUpload" />
                              <label htmlFor="avatarUpload" className="cursor-pointer block">
                                 {avatarPreview ? (
-                                   <img src={avatarPreview} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md" />
+                                   <img src={avatarPreview} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md" />
                                 ) : (
-                                   <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300">
+                                   <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-300 dark:border-gray-600">
                                       {isProcessingImage ? <RefreshCw className="animate-spin" /> : <Camera size={32} />}
                                    </div>
                                 )}
@@ -1024,7 +1026,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                           {avatarPreview && (
                             <button 
                                 onClick={handleRemoveAvatar}
-                                className="text-xs text-red-500 font-bold hover:bg-red-50 px-3 py-1 rounded-full border border-red-200 transition-colors"
+                                className="text-xs text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/30 px-3 py-1 rounded-full border border-red-200 dark:border-red-800 transition-colors"
                             >
                                 Xóa ảnh
                             </button>
@@ -1033,36 +1035,36 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
 
                        <div>
                             <div className="flex justify-between items-center mb-1">
-                                <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide">Tên đăng nhập <span className="text-red-500">*</span></label>
+                                <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide">Tên đăng nhập <span className="text-red-500">*</span></label>
                                 {!isEditing && (
-                                    <label className="flex items-center text-xs cursor-pointer text-emerald-600 font-medium">
+                                    <label className="flex items-center text-xs cursor-pointer text-emerald-600 dark:text-emerald-400 font-medium">
                                         <input 
                                             type="checkbox" 
                                             checked={autoGenUsername}
                                             onChange={() => setAutoGenUsername(!autoGenUsername)}
-                                            className="mr-1 rounded text-emerald-500 focus:ring-emerald-500"
+                                            className="mr-1 rounded text-emerald-500 focus:ring-emerald-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700"
                                         />
                                         <Wand2 size={12} className="mr-1"/> Tự động tạo
                                     </label>
                                 )}
                             </div>
                             <input 
-                                className={`block w-full rounded-lg border p-3 text-sm outline-none transition-all ${isEditing ? 'bg-gray-50 text-gray-500 border-gray-200' : 'bg-white border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50'}`}
+                                className={`block w-full rounded-lg border p-3 text-sm outline-none transition-all ${isEditing ? 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30'}`}
                                 value={formData.username || ''}
                                 onChange={e => setFormData({...formData, username: e.target.value})}
                                 readOnly={isEditing || autoGenUsername}
                                 placeholder={autoGenUsername ? "Tự động tạo theo quy tắc..." : "VD: nguyenvan_a"}
                             />
                             {autoGenUsername && (
-                                <p className="text-[10px] text-emerald-600 mt-1 italic">
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 italic">
                                     * DSA: Mã code (VD: DA013631) | Manager: Tên viết liền (VD: buicongqua)
                                 </p>
                             )}
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Họ và Tên <span className="text-red-500">*</span></label>
+                            <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide mb-1 block">Họ và Tên <span className="text-red-500">*</span></label>
                             <input 
-                                className="block w-full rounded-lg border border-emerald-200 p-3 text-sm bg-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 placeholder-gray-400 font-medium text-gray-800"
+                                className="block w-full rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30 placeholder-gray-400 dark:placeholder-gray-500 font-medium text-gray-800 dark:text-gray-200"
                                 value={formData.name || ''}
                                 onChange={e => setFormData({...formData, name: e.target.value})}
                                 placeholder="VD: Nguyễn Văn A"
@@ -1071,18 +1073,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                         
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Số Điện Thoại (Zalo)</label>
+                                <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide mb-1 block">Số Điện Thoại (Zalo)</label>
                                 <input 
-                                    className="block w-full rounded-lg border border-emerald-200 p-3 text-sm bg-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 placeholder-gray-400 font-medium"
+                                    className="block w-full rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30 placeholder-gray-400 dark:placeholder-gray-500 font-medium text-gray-800 dark:text-gray-200"
                                     value={formData.phoneNumber || ''}
                                     onChange={e => setFormData({...formData, phoneNumber: e.target.value})}
                                     placeholder="VD: 0987654321"
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">DSA Code</label>
+                                <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide mb-1 block">DSA Code</label>
                                 <input 
-                                    className="block w-full rounded-lg border border-emerald-200 p-3 text-sm bg-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 placeholder-gray-400 font-mono"
+                                    className="block w-full rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30 placeholder-gray-400 dark:placeholder-gray-500 font-mono text-gray-800 dark:text-gray-200"
                                     value={formData.dsaCode || ''}
                                     onChange={e => setFormData({...formData, dsaCode: e.target.value})}
                                     placeholder="DA..."
@@ -1091,9 +1093,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                         </div>
 
                          <div>
-                            <label className="text-xs font-bold text-emerald-900 uppercase tracking-wide mb-1 block">Chức vụ</label>
+                            <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide mb-1 block">Chức vụ</label>
                             <select 
-                                className="block w-full rounded-lg border border-emerald-200 p-3 text-sm bg-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 text-gray-800 font-medium"
+                                className="block w-full rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30 text-gray-800 dark:text-gray-200 font-medium"
                                 value={formData.role || 'DSA'} 
                                 onChange={e => setFormData({...formData, role: e.target.value as any, parentId: ''})}
                             >
@@ -1105,10 +1107,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                         </div>
 
                         {['DSA', 'DSS', 'SM'].includes(formData.role || 'DSA') && (
-                            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
-                                <label className="text-xs font-bold text-purple-800 uppercase tracking-wide mb-2 block">{parentLabel}</label>
+                            <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-800">
+                                <label className="text-xs font-bold text-purple-800 dark:text-purple-300 uppercase tracking-wide mb-2 block">{parentLabel}</label>
                                 <select 
-                                    className="block w-full rounded-lg border-purple-200 p-3 text-sm bg-white outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 text-gray-700"
+                                    className="block w-full rounded-lg border-purple-200 dark:border-purple-700 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 dark:focus:ring-purple-900/30 text-gray-700 dark:text-gray-200"
                                     value={formData.parentId || ''}
                                     onChange={e => setFormData({...formData, parentId: e.target.value})}
                                 >
@@ -1121,7 +1123,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                         )}
 
                         <div className="pt-2 flex gap-3">
-                             <button onClick={resetForm} className="flex-1 py-3 rounded-lg border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-colors">Hủy</button>
+                             <button onClick={resetForm} className="flex-1 py-3 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Hủy</button>
                              <button 
                                 onClick={handleSave}
                                 disabled={!canAccessManagement || isProcessingImage}
@@ -1139,20 +1141,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       {/* --- MODAL: IMPORT EXCEL --- */}
       {showImport && (
            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-100">
-                  <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-                       <h3 className="font-bold text-lg text-emerald-800 flex items-center">
-                           <FileSpreadsheet className="mr-2 text-emerald-600"/> Import Excel (CSV)
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-100 dark:border-emerald-900">
+                  <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                       <h3 className="font-bold text-lg text-emerald-800 dark:text-emerald-300 flex items-center">
+                           <FileSpreadsheet className="mr-2 text-emerald-600 dark:text-emerald-400"/> Import Excel (CSV)
                        </h3>
-                       <button onClick={() => setShowImport(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+                       <button onClick={() => setShowImport(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={20}/></button>
                   </div>
                   <div className="p-6">
-                       <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                       <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
                            Tải lên file CSV để thêm nhanh hoặc cập nhật nhân viên. Hệ thống tự động nhận diện theo <b>Username</b>.
                        </p>
                        
                        <div className="space-y-3">
-                           <button onClick={downloadTemplate} className="w-full bg-white border border-emerald-200 text-emerald-700 rounded-lg p-3 text-sm font-bold hover:bg-emerald-50 transition-colors flex items-center justify-center">
+                           <button onClick={downloadTemplate} className="w-full bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-lg p-3 text-sm font-bold hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors flex items-center justify-center">
                                <Download size={16} className="mr-2"/> Tải File Mẫu
                            </button>
                            

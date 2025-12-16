@@ -65,6 +65,7 @@ export interface KnowledgeArticle {
   id: string;
   title: string;
   content: string; // HTML or Markdown text
+  image?: string; // Base64 compressed image
   author: string;
   date: string;
   role: Role; // Role required to see/edit (usually all see, manager edit)

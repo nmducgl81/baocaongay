@@ -45,7 +45,11 @@ import {
   BookOpen, 
   Camera,
   UserMinus, 
-  FileCheck 
+  FileCheck,
+  Activity,
+  Moon,
+  Sun,
+  ArrowRight
 } from 'lucide-react';
 
 const MOTIVATIONAL_QUOTES = [
@@ -60,6 +64,33 @@ const MOTIVATIONAL_QUOTES = [
 ];
 
 const App: React.FC = () => {
+  // Helper to format date as YYYY-MM-DD in Local Time
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // --- THEME STATE ---
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('app_theme') as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('app_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
   // Check localStorage for saved session on initial load
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -96,11 +127,13 @@ const App: React.FC = () => {
   });
 
   const [startDate, setStartDate] = useState<string>(() => {
-    return localStorage.getItem('startDate') || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    return localStorage.getItem('startDate') || formatDate(firstDay);
   });
 
   const [endDate, setEndDate] = useState<string>(() => {
-    return localStorage.getItem('endDate') || new Date().toISOString().split('T')[0];
+    return localStorage.getItem('endDate') || formatDate(new Date());
   });
 
   const [statusFilter, setStatusFilter] = useState<string>(() => {
@@ -215,9 +248,6 @@ const App: React.FC = () => {
         } else {
              // If remote is empty but local has data (and it's first run/offline), use local or mock
              if (allData.length === 0) {
-                 // Check if we really have no data or just filtered out old data
-                 // For safety on first run, stick to Mock if nothing exists
-                 // Note: We don't auto-seed mock data to Firebase here to prevent accidental junk data
                  const mock = generateMockData();
                  setAllData(mock);
              }
@@ -248,25 +278,33 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('smFilter', smFilter); }, [smFilter]);
   useEffect(() => { localStorage.setItem('dssFilter', dssFilter); }, [dssFilter]);
 
-  // --- SYNC LOGIC: AUTO-UPDATE SALES RECORDS WHEN USERS CHANGE ---
+  // --- SYNC LOGIC: CLEAN & UPDATE DATA BASED ON CURRENT USERS ---
   useEffect(() => {
     if (users.length === 0) return;
 
     setAllData(currentData => {
         const newData = [...currentData];
         let hasChanges = false;
-        const today = new Date().toISOString().split('T')[0];
+        const today = formatDate(new Date());
 
-        // Helper to find hierarchy names
+        // 1. Build a quick lookup map for Users - O(N)
+        const userMap = new Map<string, User>();
+        const idToUserMap = new Map<string, User>();
+        users.forEach(u => {
+            if (u.dsaCode) userMap.set(u.dsaCode, u);
+            idToUserMap.set(u.id, u);
+        });
+
+        // 2. Helper to find hierarchy names - O(1) with map
         const getHierarchy = (user: User) => {
             let dss = '';
             let smName = '';
             if (user.parentId) {
-                const parent = users.find(u => u.id === user.parentId);
+                const parent = idToUserMap.get(user.parentId);
                 if (parent) {
                     if (parent.role === 'DSS') {
                         dss = parent.name;
-                        const sm = users.find(u => u.id === parent.parentId);
+                        const sm = idToUserMap.get(parent.parentId || '');
                         if (sm) smName = sm.name;
                     } else if (parent.role === 'SM') {
                         smName = parent.name;
@@ -276,15 +314,37 @@ const App: React.FC = () => {
             return { dss, smName };
         };
 
+        // 3. CLEANING PHASE: Sync Hierarchy for ALL records
+        // IMPORTANT: We only run this if we detect hierarchy drift (e.g. users changed).
+        // To optimize, we assume this runs when 'users' changes. 
+        // We use the Maps to make this O(M) instead of O(M*N).
+        newData.forEach((record, index) => {
+            const user = userMap.get(record.dsaCode);
+            if (user) {
+                const { dss, smName } = getHierarchy(user);
+                // Check if data is stale
+                if (record.dss !== dss || record.smName !== smName || record.name !== user.name) {
+                    newData[index] = {
+                        ...record,
+                        name: user.name, // Ensure name is up to date too
+                        dss: dss,
+                        smName: smName
+                    };
+                    hasChanges = true;
+                }
+            }
+        });
+
+        // 4. CREATION PHASE: Ensure "Today" records exist for active DSAs
         const dsaUsers = users.filter(u => u.role === 'DSA' && u.dsaCode);
         
         dsaUsers.forEach(user => {
             if (!user.dsaCode) return;
 
             const existingRecordIndex = newData.findIndex(r => r.dsaCode === user.dsaCode && r.reportDate === today);
-            const { dss, smName } = getHierarchy(user);
-
+            // If exists, hierarchy was already checked in step 3. 
             if (existingRecordIndex === -1) {
+                const { dss, smName } = getHierarchy(user);
                 const newRecord: SalesRecord = {
                     id: `auto-${user.id}-${today.replace(/-/g, '')}`,
                     dsaCode: user.dsaCode,
@@ -307,21 +367,6 @@ const App: React.FC = () => {
                     setDoc(doc(db, "sales_records", newRecord.id), sanitizeForFirestore(newRecord)).catch(e => console.error("Auto-create sync skipped (offline)"));
                 }
                 hasChanges = true;
-            } else {
-                const rec = newData[existingRecordIndex];
-                if (rec.dss !== dss || rec.smName !== smName || rec.name !== user.name) {
-                    const updatedRec = {
-                        ...rec,
-                        name: user.name,
-                        dss: dss,
-                        smName: smName
-                    };
-                    newData[existingRecordIndex] = updatedRec;
-                    if (db && isOnline) {
-                        setDoc(doc(db, "sales_records", rec.id), sanitizeForFirestore(updatedRec)).catch(e => console.error("Auto-update sync skipped (offline)"));
-                    }
-                    hasChanges = true;
-                }
             }
         });
 
@@ -367,8 +412,17 @@ const App: React.FC = () => {
   const filteredData = useMemo(() => {
     if (!currentUser) return [];
     
+    // 1. Get IDs allowed by hierarchy permission
     const visibleDSAIds = authService.getVisibleDSAIds(currentUser, users);
-    let data = allData.filter(record => visibleDSAIds.includes(record.dsaCode));
+    
+    // 2. Create Set of ALL Currently Active User Codes (to strictly filter out deleted users)
+    // This ensures that even if a record exists in 'allData', it won't show if the user is gone from 'users'
+    const activeUserCodes = new Set(users.map(u => u.dsaCode).filter(Boolean));
+
+    let data = allData.filter(record => 
+        visibleDSAIds.includes(record.dsaCode) && 
+        activeUserCodes.has(record.dsaCode)
+    );
 
     data = data.filter(record => 
       record.reportDate >= startDate && record.reportDate <= endDate
@@ -387,17 +441,64 @@ const App: React.FC = () => {
     return data;
   }, [allData, currentUser, startDate, endDate, statusFilter, smFilter, dssFilter, users]);
 
-  // Global Data for Charts/Rankings (Filtered by Date AND Hierarchy, ignoring Status)
+  // --- Calculate REAL Headcount based on User List and Filters ---
+  const filteredHeadcount = useMemo(() => {
+    if (!currentUser) return 0;
+    
+    // 1. Base Scope (Permissions)
+    const visibleIds = authService.getVisibleDSAIds(currentUser, users);
+    // Use visibleIds to find relevant user objects
+    let targetUsers = users.filter(u => u.role === 'DSA' && visibleIds.includes(u.dsaCode || ''));
+
+    // 2. Apply UI Filters (SM / DSS) - Replicate logic used for records
+    if (smFilter !== 'all') {
+        targetUsers = targetUsers.filter(u => {
+            // Find hierarchy
+            const parent = users.find(p => p.id === u.parentId); // DSS or SM
+            if (!parent) return false;
+            
+            if (parent.role === 'SM') return parent.name === smFilter; // Direct report to SM
+            if (parent.role === 'DSS') {
+                const grandParent = users.find(gp => gp.id === parent.parentId);
+                return grandParent && grandParent.role === 'SM' && grandParent.name === smFilter;
+            }
+            return false;
+        });
+    }
+
+    if (dssFilter !== 'all') {
+        targetUsers = targetUsers.filter(u => {
+            const parent = users.find(p => p.id === u.parentId);
+            return parent && parent.name === dssFilter;
+        });
+    }
+
+    return targetUsers.length;
+  }, [users, currentUser, smFilter, dssFilter]);
+
+  // --- GLOBAL DATA FOR RANKINGS (UNRESTRICTED) ---
+  // Modification: Removed `visibleDSAIds` filter so Rankings show ALL company data
+  // Modification 2: Explicitly filter out DELETED users by checking if dsaCode exists in `users` array
   const dateFilteredGlobalData = useMemo(() => {
     if (!currentUser) return [];
     
-    const visibleDSAIds = authService.getVisibleDSAIds(currentUser, users);
-    let data = allData.filter(record => visibleDSAIds.includes(record.dsaCode));
-
-    data = data.filter(record => 
-        record.reportDate >= startDate && record.reportDate <= endDate
+    // 1. Create a Set of Active DSA Codes for O(1) lookup
+    // This ensures we only show rankings for currently existing users (Filter out deleted ones)
+    const activeDsaCodes = new Set(
+        users
+        .filter(u => u.role === 'DSA' && u.dsaCode)
+        .map(u => u.dsaCode!)
     );
 
+    // 2. Filter records by Date AND Active Status
+    let data = allData.filter(record => 
+        record.reportDate >= startDate && 
+        record.reportDate <= endDate &&
+        activeDsaCodes.has(record.dsaCode) // STRICTLY CHECK IF USER EXISTS
+    );
+
+    // Still respect the Dashboard Filters if selected (e.g. if Admin filters by SM, Ranking adjusts)
+    // For DSA/DSS who can't see the filters, these will default to 'all' so they see everything.
     if (smFilter !== 'all') {
         data = data.filter(record => record.smName === smFilter);
     }
@@ -427,13 +528,19 @@ const App: React.FC = () => {
     if (currentUser?.role === 'DSA') return [];
     if (!currentUser) return [];
     const visibleDSAIds = authService.getVisibleDSAIds(currentUser, users);
-    return allData.filter(r => visibleDSAIds.includes(r.dsaCode) && r.approvalStatus === 'Pending');
+    // Add extra check to only show pending records for active users
+    const activeUserCodes = new Set(users.map(u => u.dsaCode).filter(Boolean));
+    return allData.filter(r => 
+        visibleDSAIds.includes(r.dsaCode) && 
+        activeUserCodes.has(r.dsaCode) &&
+        r.approvalStatus === 'Pending'
+    );
   }, [allData, currentUser, users]);
 
   const unreportedInfo = useMemo(() => {
     if (!currentUser || currentUser.role === 'DSA') return null;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDate(new Date());
     const visibleDSAIds = authService.getVisibleDSAIds(currentUser, users);
     const managedDSAs = users.filter(u => u.role === 'DSA' && visibleDSAIds.includes(u.dsaCode || ''));
 
@@ -450,10 +557,22 @@ const App: React.FC = () => {
     };
   }, [users, allData, currentUser]);
 
+  // Calculate Unique Reported Personnel (Numerator for the Ratio)
+  // This counts how many distinct PEOPLE reported in the selected period (Week/Month)
+  const uniqueReportedCount = useMemo(() => {
+      // Get unique DSA Codes from filtered data that have status "Đã báo cáo"
+      const uniqueCodes = new Set(
+          filteredData
+          .filter(r => r.status === 'Đã báo cáo')
+          .map(r => r.dsaCode)
+      );
+      return uniqueCodes.size;
+  }, [filteredData]);
+
   const dsaInfo = useMemo(() => {
     if (currentUser?.role !== 'DSA') return null;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDate(new Date());
     const isReportedToday = allData.some(r => 
         r.dsaCode === currentUser.dsaCode && 
         r.reportDate === today && 
@@ -594,12 +713,14 @@ const App: React.FC = () => {
   };
   
   const handleUpdateUser = async (updatedUser: User) => {
+    // 1. Update User State
     setUsers(prev => {
         const updated = prev.map(u => u.id === updatedUser.id ? updatedUser : u);
         localStorage.setItem('app_users', JSON.stringify(updated));
         return updated;
     });
 
+    // 2. Firebase Sync User
     if (db && isOnline) {
       try {
           await setDoc(doc(db, "users", updatedUser.id), sanitizeForFirestore(updatedUser));
@@ -660,13 +781,21 @@ const App: React.FC = () => {
   const handleViewPending = () => {
     if (pendingRecords.length === 0) return;
     const dates = pendingRecords.map(r => new Date(r.reportDate).getTime());
-    const minDate = new Date(Math.min(...dates)).toISOString().split('T')[0];
-    const maxDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
+    const minDate = formatDate(new Date(Math.min(...dates)));
+    const maxDate = formatDate(new Date(Math.max(...dates)));
     
     setStartDate(minDate);
     setEndDate(maxDate);
     setViewMode('table');
     setStatusFilter('all');
+  };
+
+  // Filter missing reports
+  const handleViewUnreported = () => {
+      setStartDate(formatDate(new Date()));
+      setEndDate(formatDate(new Date()));
+      setViewMode('table');
+      setStatusFilter('Chưa báo cáo');
   };
 
   const handleExportCSV = () => {
@@ -754,28 +883,33 @@ const App: React.FC = () => {
   };
 
   const setFilterToday = () => {
-    const today = new Date().toISOString().split('T')[0];
-    setStartDate(today);
-    setEndDate(today);
+    setStartDate(formatDate(new Date()));
+    setEndDate(formatDate(new Date()));
   };
 
   const setFilterWeek = () => {
     const curr = new Date();
-    const day = curr.getDay() || 7; 
+    // Get current day of week (0-6), adjust so 0 is Sunday
+    const day = curr.getDay(); 
+    // Calculate Monday (if day is 0/Sunday, go back 6 days, else go back day-1)
+    const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
+    
     const first = new Date(curr);
-    first.setDate(curr.getDate() - day + 1);
+    first.setDate(diff);
+    
     const last = new Date(first);
     last.setDate(first.getDate() + 6);
-    setStartDate(first.toISOString().split('T')[0]);
-    setEndDate(last.toISOString().split('T')[0]);
+    
+    setStartDate(formatDate(first));
+    setEndDate(formatDate(last));
   };
 
   const setFilterMonth = () => {
     const date = new Date();
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
-    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
-    setStartDate(firstDay);
-    setEndDate(lastDay);
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    setStartDate(formatDate(firstDay));
+    setEndDate(formatDate(lastDay));
   };
 
   const compressImage = (file: File): Promise<string> => {
@@ -809,9 +943,11 @@ const App: React.FC = () => {
                     reject(new Error("Canvas context failed"));
                 }
             };
-            img.onerror = (err) => reject(err);
+            // FIX: Reject with Error object, NOT Event
+            img.onerror = () => reject(new Error("Image loading failed"));
         };
-        reader.onerror = (err) => reject(err);
+        // FIX: Reject with Error object, NOT Event
+        reader.onerror = () => reject(new Error("File reading failed"));
     });
   };
 
@@ -853,7 +989,7 @@ const App: React.FC = () => {
   const showDssFilterUI = ['ADMIN', 'RSM', 'SM'].includes(currentUser.role);
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-sans">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col font-sans transition-colors duration-300">
       
       {/* FIREBASE AUTH ERROR MODAL */}
       {(firebaseError === 'auth/configuration-not-found' || firebaseError === 'auth/operation-not-allowed') && (
@@ -907,17 +1043,17 @@ const App: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-emerald-100 sticky top-0 z-30 shadow-sm">
+      <header className="bg-white dark:bg-gray-800 border-b border-emerald-100 dark:border-gray-700 sticky top-0 z-30 shadow-sm transition-colors duration-300">
         <div className="max-w-[1920px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentScreen('dashboard')}>
              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-2 rounded-lg shadow-md">
                 <FileText size={22} />
              </div>
              <div>
-                <h1 className="text-xl font-bold text-gray-800 tracking-tight leading-none">DSA Dashboard</h1>
-                <p className="text-xs text-emerald-600 mt-0.5 font-bold uppercase flex items-center">
+                <h1 className="text-xl font-bold text-gray-800 dark:text-white tracking-tight leading-none">DSA Dashboard</h1>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 font-bold uppercase flex items-center">
                     Xin chào, {currentUser.name}
-                    <span className="ml-2 text-gray-300">|</span>
+                    <span className="ml-2 text-gray-300 dark:text-gray-600">|</span>
                     <span className={`ml-2 flex items-center ${isLoadingData ? 'text-orange-500' : (!isOnline ? 'text-gray-400' : 'text-emerald-500')}`}>
                         {isLoadingData ? <Loader2 size={10} className="mr-1 animate-spin"/> : (!isOnline ? <WifiOff size={10} className="mr-1"/> : <CloudLightning size={10} className="mr-1"/>)}
                         {isLoadingData ? 'Syncing...' : (!isOnline ? 'Offline Mode' : 'Online')}
@@ -931,13 +1067,13 @@ const App: React.FC = () => {
              <div className="hidden md:flex items-center space-x-2 mr-2">
                 <button 
                   onClick={() => setCurrentScreen('calculator')}
-                  className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${currentScreen === 'calculator' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${currentScreen === 'calculator' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                 >
                     <Calculator size={18} className="mr-1.5"/> Tính Lãi
                 </button>
                 <button 
                   onClick={() => setCurrentScreen('knowledge')}
-                  className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${currentScreen === 'knowledge' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${currentScreen === 'knowledge' ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                 >
                     <BookOpen size={18} className="mr-1.5"/> Kiến Thức
                 </button>
@@ -947,13 +1083,22 @@ const App: React.FC = () => {
              {canAccessSettings && currentScreen !== 'admin' && (
                 <button 
                   onClick={() => setCurrentScreen('admin')}
-                  className="flex items-center text-gray-600 hover:text-emerald-700 font-medium transition-colors bg-gray-50 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-transparent hover:border-emerald-200 hidden md:flex"
+                  className="flex items-center text-gray-600 dark:text-gray-300 hover:text-emerald-700 dark:hover:text-emerald-400 font-medium transition-colors bg-gray-50 dark:bg-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-transparent hover:border-emerald-200 hidden md:flex"
                 >
                   <Settings size={18} className="mr-2" /> Quản lý
                 </button>
              )}
 
-            <div className="flex items-center text-sm text-gray-600 mr-2 bg-gray-50 border border-gray-100 pl-3 pr-2 py-1.5 rounded-full shadow-sm hidden md:flex">
+             {/* Theme Toggle */}
+             <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+                title="Đổi giao diện"
+             >
+                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+             </button>
+
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300 mr-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 pl-3 pr-2 py-1.5 rounded-full shadow-sm hidden md:flex">
                {/* Header Avatar with Upload Trigger */}
                <div className="relative group cursor-pointer mr-2">
                    <input 
@@ -979,13 +1124,13 @@ const App: React.FC = () => {
                    </div>
                </div>
 
-               <span className="font-bold text-gray-800 mr-1">{currentUser.name}</span>
-               <span className="text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded ml-1 font-bold">{currentUser.role}</span>
+               <span className="font-bold text-gray-800 dark:text-gray-200 mr-1">{currentUser.name}</span>
+               <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded ml-1 font-bold">{currentUser.role}</span>
             </div>
 
             <button 
                onClick={handleLogout}
-               className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+               className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
                title="Đăng xuất"
             >
                <LogOut size={20} />
@@ -994,12 +1139,15 @@ const App: React.FC = () => {
         </div>
         
         {/* Mobile Sub-menu */}
-        <div className="md:hidden border-t border-gray-100 bg-gray-50 flex justify-around p-2">
-            <button onClick={() => setCurrentScreen('dashboard')} className={`p-2 rounded-lg ${currentScreen === 'dashboard' ? 'bg-white shadow text-emerald-600' : 'text-gray-500'}`}><BarChart2 size={20}/></button>
-            <button onClick={() => setCurrentScreen('calculator')} className={`p-2 rounded-lg ${currentScreen === 'calculator' ? 'bg-white shadow text-emerald-600' : 'text-gray-500'}`}><Calculator size={20}/></button>
-            <button onClick={() => setCurrentScreen('knowledge')} className={`p-2 rounded-lg ${currentScreen === 'knowledge' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}><BookOpen size={20}/></button>
-            {canAccessSettings && <button onClick={() => setCurrentScreen('admin')} className={`p-2 rounded-lg ${currentScreen === 'admin' ? 'bg-white shadow text-emerald-600' : 'text-gray-500'}`}><Settings size={20}/></button>}
-        </div>
+        {/* Hide when in Table View to save space as requested */}
+        {!(currentScreen === 'dashboard' && viewMode === 'table') && (
+            <div className="md:hidden border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex justify-around p-2">
+                <button onClick={() => setCurrentScreen('dashboard')} className={`p-2 rounded-lg ${currentScreen === 'dashboard' ? 'bg-white dark:bg-gray-700 shadow text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}><BarChart2 size={20}/></button>
+                <button onClick={() => setCurrentScreen('calculator')} className={`p-2 rounded-lg ${currentScreen === 'calculator' ? 'bg-white dark:bg-gray-700 shadow text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}><Calculator size={20}/></button>
+                <button onClick={() => setCurrentScreen('knowledge')} className={`p-2 rounded-lg ${currentScreen === 'knowledge' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}><BookOpen size={20}/></button>
+                {canAccessSettings && <button onClick={() => setCurrentScreen('admin')} className={`p-2 rounded-lg ${currentScreen === 'admin' ? 'bg-white dark:bg-gray-700 shadow text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}><Settings size={20}/></button>}
+            </div>
+        )}
       </header>
 
       <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
@@ -1031,13 +1179,13 @@ const App: React.FC = () => {
           <>
              {/* Dynamic Header Alert / Quote */}
             {dsaInfo && !dsaInfo.isReportedToday ? (
-            <div className="mb-6 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl py-4 px-5 flex items-center shadow-sm animate-pulse">
-                <div className="bg-red-100 p-2 rounded-full mr-4">
-                    <BellRing className="text-red-600 animate-bounce" size={24} />
+            <div className="mb-6 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl py-4 px-5 flex items-center shadow-sm animate-pulse dark:from-red-900/30 dark:to-pink-900/30 dark:border-red-800">
+                <div className="bg-red-100 dark:bg-red-900/50 p-2 rounded-full mr-4">
+                    <BellRing className="text-red-600 dark:text-red-400 animate-bounce" size={24} />
                 </div>
                 <div>
-                    <h3 className="font-bold text-red-800 text-lg">Bạn chưa báo cáo hôm nay!</h3>
-                    <p className="text-red-600 text-sm">Hãy cập nhật doanh số ngay để cải thiện thứ hạng và không bị nhắc nhở.</p>
+                    <h3 className="font-bold text-red-800 dark:text-red-300 text-lg">Bạn chưa báo cáo hôm nay!</h3>
+                    <p className="text-red-600 dark:text-red-400 text-sm">Hãy cập nhật doanh số ngay để cải thiện thứ hạng và không bị nhắc nhở.</p>
                 </div>
                 <button 
                     onClick={handleCreateNew}
@@ -1046,58 +1194,53 @@ const App: React.FC = () => {
                     Báo cáo ngay
                 </button>
             </div>
-            ) : !['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role) ? (
-            <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-xl py-3 px-5 flex items-center shadow-sm">
-                <Megaphone className="text-orange-500 mr-3 flex-shrink-0 animate-bounce" size={20} />
-                <p className="font-bold text-orange-800 italic text-sm md:text-base">
-                    "{randomQuote}"
-                </p>
-            </div>
             ) : null}
 
-            {/* Manager Alerts - Only for Managers */}
+            {/* Manager Alerts - COMPACT STYLE */}
             {['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="mb-6 space-y-4">
                     {/* Pending Approval Alert */}
                     {pendingRecords.length > 0 && (
-                        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center shadow-sm animate-pulse justify-between">
+                        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-3 flex items-center justify-between shadow-sm animate-pulse">
                             <div className="flex items-center">
-                                <div className="bg-orange-100 p-2 rounded-full mr-3 text-orange-600">
-                                    <FileCheck size={24} />
+                                <div className="bg-orange-100 dark:bg-orange-900/50 p-2 rounded-full mr-3 text-orange-600 dark:text-orange-400">
+                                    <FileCheck size={20} />
                                 </div>
-                                <div>
-                                    <h4 className="font-bold text-orange-800 text-sm md:text-base">Cần duyệt chỉnh sửa</h4>
-                                    <p className="text-xs md:text-sm text-orange-700">
-                                        Có <span className="font-bold text-lg">{pendingRecords.length}</span> yêu cầu đang chờ bạn phê duyệt.
-                                    </p>
-                                </div>
+                                <span className="font-bold text-orange-800 dark:text-orange-300 text-sm md:text-base">
+                                    Có <span className="text-lg">{pendingRecords.length}</span> yêu cầu chỉnh sửa đang chờ duyệt.
+                                </span>
                             </div>
-                            <button 
-                                onClick={handleViewPending}
-                                className="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-700 transition-colors shadow-sm whitespace-nowrap ml-2"
-                            >
-                                Xem & Duyệt
+                            <button onClick={handleViewPending} className="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-700 transition-colors shadow-sm whitespace-nowrap ml-2">
+                                Duyệt Ngay
                             </button>
                         </div>
                     )}
 
-                    {/* Missing Report Alert */}
+                    {/* Missing Report Alert - COMPACT RED BANNER */}
                     {unreportedInfo && unreportedInfo.count > 0 && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center shadow-sm">
-                            <div className="bg-red-100 p-2 rounded-full mr-3 text-red-600">
-                                <UserMinus size={24} />
+                        <div 
+                            className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl shadow-lg flex items-center justify-between cursor-pointer transition-colors animate-pulse"
+                            onClick={handleViewUnreported}
+                        >
+                            <div className="flex items-center">
+                                <AlertTriangle className="mr-3 animate-bounce" size={24} />
+                                <span className="font-bold uppercase text-sm md:text-base tracking-wide">
+                                    {unreportedInfo.count} DSA CHƯA BÁO CÁO - HÃY LỌC DỮ LIỆU !
+                                </span>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                 <h4 className="font-bold text-red-800 text-sm md:text-base">Chưa báo cáo hôm nay</h4>
-                                 <p className="text-xs md:text-sm text-red-700">
-                                    <span className="font-bold text-lg">{unreportedInfo.count}</span> nhân viên chưa cập nhật số liệu.
-                                 </p>
-                                 <div className="text-xs text-red-500 mt-1 truncate">
-                                    {unreportedInfo.names.slice(0, 3).join(', ')} {unreportedInfo.count > 3 ? `và ${unreportedInfo.count - 3} người khác` : ''}
-                                 </div>
-                            </div>
+                            <ArrowRight size={20} />
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Quote of the Day - Always visible unless DSA Unreported */}
+            {(!dsaInfo || dsaInfo.isReportedToday) && (
+                <div className="mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl py-3 px-5 flex items-center shadow-sm">
+                    <Megaphone className="text-emerald-500 mr-3 flex-shrink-0 animate-bounce" size={20} />
+                    <p className="font-bold text-emerald-800 dark:text-emerald-300 italic text-sm md:text-base w-full text-center md:text-left">
+                        "{randomQuote}"
+                    </p>
                 </div>
             )}
             
@@ -1139,8 +1282,8 @@ const App: React.FC = () => {
                 />
               ) : (
                 <StatsCard 
-                  title="Đã Báo Cáo" 
-                  value={`${stats.reportedCount}/${stats.totalRecords}`} 
+                  title={startDate === endDate ? "Đã Báo Cáo" : "Nhân sự hoạt động"} 
+                  value={`${uniqueReportedCount}/${filteredHeadcount}`} 
                   color="green"
                   icon={<Users size={20} />}
                 />
@@ -1148,50 +1291,50 @@ const App: React.FC = () => {
 
               <StatsCard 
                 title="Tỷ lệ hoạt động" 
-                value={stats.totalRecords > 0 ? `${((stats.reportedCount / stats.totalRecords) * 100).toFixed(0)}%` : '0%'} 
+                value={filteredHeadcount > 0 ? `${((uniqueReportedCount / filteredHeadcount) * 100).toFixed(0)}%` : '0%'} 
                 color="blue"
-                icon={<Loader2 size={20} />}
+                icon={<Activity size={20} />}
               />
             </div>
 
             {/* Controls Toolbar */}
-            <div className="bg-white p-4 rounded-xl shadow-md border border-gray-100 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-300">
                {/* Filters */}
                <div className="flex flex-col md:flex-row md:items-center gap-3 w-full">
                   <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
                     {/* Date Picker Group */}
-                    <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-lg border border-gray-200 w-full sm:w-auto justify-between sm:justify-start">
+                    <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-700/50 p-1 rounded-lg border border-gray-200 dark:border-gray-600 w-full sm:w-auto justify-between sm:justify-start">
                       <div className="px-2 text-gray-400"><Calendar size={18} /></div>
                       <input 
                         type="date" 
                         value={startDate} 
                         onChange={e => setStartDate(e.target.value)}
-                        className="bg-transparent border-none text-gray-700 text-sm font-medium focus:ring-0 p-1 w-24 md:w-28" 
+                        className="bg-transparent border-none text-gray-700 dark:text-gray-200 text-sm font-medium focus:ring-0 p-1 w-24 md:w-28 color-scheme-dark" 
                       />
                       <span className="text-gray-300 font-bold">-</span>
                       <input 
                         type="date" 
                         value={endDate} 
                         onChange={e => setEndDate(e.target.value)}
-                        className="bg-transparent border-none text-gray-700 text-sm font-medium focus:ring-0 p-1 w-24 md:w-28" 
+                        className="bg-transparent border-none text-gray-700 dark:text-gray-200 text-sm font-medium focus:ring-0 p-1 w-24 md:w-28 color-scheme-dark" 
                       />
                     </div>
                     
                     {/* Quick Filters - Mobile Friendly */}
                     <div className="flex gap-2 w-full sm:w-auto">
-                       <button onClick={setFilterToday} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors whitespace-nowrap">
+                       <button onClick={setFilterToday} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors whitespace-nowrap">
                           Hôm nay
                        </button>
-                       <button onClick={setFilterWeek} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors whitespace-nowrap">
+                       <button onClick={setFilterWeek} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg border border-purple-200 dark:border-purple-800 transition-colors whitespace-nowrap">
                           Tuần này
                        </button>
-                       <button onClick={setFilterMonth} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors whitespace-nowrap">
+                       <button onClick={setFilterMonth} className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors whitespace-nowrap">
                           Tháng này
                        </button>
                     </div>
                   </div>
 
-                   <div className="h-8 w-px bg-gray-200 mx-1 hidden lg:block"></div>
+                   <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden lg:block"></div>
                    
                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
                       {/* SM Filter */}
@@ -1200,7 +1343,7 @@ const App: React.FC = () => {
                             <select 
                                 value={smFilter} 
                                 onChange={e => setSmFilter(e.target.value)}
-                                className="w-full bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-500 md:w-44 outline-none"
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-500 md:w-44 outline-none"
                             >
                                 <option value="all">Tất cả SM</option>
                                 {smOptions.map(sm => (
@@ -1217,7 +1360,7 @@ const App: React.FC = () => {
                             <select 
                                 value={dssFilter} 
                                 onChange={e => setDssFilter(e.target.value)}
-                                className="w-full bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-500 md:w-44 outline-none"
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-500 md:w-44 outline-none"
                             >
                                 <option value="all">Tất cả DSS</option>
                                 {dssOptions.map(dss => (
@@ -1233,7 +1376,7 @@ const App: React.FC = () => {
                           <select 
                             value={statusFilter} 
                             onChange={e => setStatusFilter(e.target.value)}
-                            className="w-full bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 md:w-44 outline-none"
+                            className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg p-2.5 pl-9 shadow-sm focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 md:w-44 outline-none"
                           >
                             <option value="all">Tất cả trạng thái</option>
                             <option value="Đã báo cáo">Đã báo cáo</option>
@@ -1244,7 +1387,7 @@ const App: React.FC = () => {
                       
                        <button 
                         onClick={refreshData}
-                        className={`p-2.5 bg-gray-50 text-emerald-600 rounded-lg border border-gray-200 hover:bg-emerald-50 hover:border-emerald-200 transition-colors ${isLoadingData ? 'animate-spin' : ''}`}
+                        className={`p-2.5 bg-gray-50 dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:border-emerald-200 transition-colors ${isLoadingData ? 'animate-spin' : ''}`}
                         title="Làm mới dữ liệu"
                       >
                           <RefreshCw size={18} />
@@ -1255,28 +1398,28 @@ const App: React.FC = () => {
                {/* Actions */}
                <div className="flex items-center gap-3 mt-4 md:mt-0 justify-between md:justify-end w-full md:w-auto">
                    {/* View Toggle */}
-                   <div className="bg-gray-100 p-1 rounded-lg flex text-sm shadow-inner w-full md:w-auto justify-center">
+                   <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex text-sm shadow-inner w-full md:w-auto justify-center">
                       <button 
                         onClick={() => setViewMode('chart')}
-                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'chart' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'chart' ? 'bg-white dark:bg-gray-600 shadow text-emerald-700 dark:text-emerald-300 font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
                       >
                          <BarChart2 size={16} className="mr-1.5" /> Biểu đồ
                       </button>
                       <button 
                         onClick={() => setViewMode('table')}
-                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'table' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`flex-1 md:flex-none px-3 py-1.5 rounded-md flex items-center justify-center transition-all ${viewMode === 'table' ? 'bg-white dark:bg-gray-600 shadow text-emerald-700 dark:text-emerald-300 font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
                       >
                          <TableIcon size={16} className="mr-1.5" /> Bảng
                       </button>
                    </div>
 
-                   <div className="h-8 w-px bg-gray-200 mx-1 hidden md:block"></div>
+                   <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"></div>
 
                    {/* CHANGE: Export only if NOT DSA */}
                    {currentUser.role !== 'DSA' && (
                        <button 
                         onClick={handleExportCSV}
-                        className="inline-flex items-center px-4 py-2.5 border border-gray-200 shadow-sm text-sm font-bold rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:text-emerald-600 hover:border-emerald-200 transition-all whitespace-nowrap"
+                        className="inline-flex items-center px-4 py-2.5 border border-gray-200 dark:border-gray-600 shadow-sm text-sm font-bold rounded-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 transition-all whitespace-nowrap"
                        >
                          <Download size={18} className="mr-2" /> <span className="hidden md:inline">Xuất Excel</span>
                        </button>
@@ -1318,12 +1461,12 @@ const App: React.FC = () => {
         </div>
 
         {/* Developer Signature */}
-        <div className="text-center py-6 mt-4 border-t border-dashed border-gray-200">
+        <div className="text-center py-6 mt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
             <a 
                 href="https://zalo.me/0867641331" 
                 target="_blank" 
                 rel="noreferrer" 
-                className="text-xs font-mono text-gray-300 hover:text-gray-500 transition-colors cursor-pointer select-none"
+                className="text-xs font-mono text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors cursor-pointer select-none"
             >
                 Developed by DSS Nguyễn Minh Đức
             </a>
@@ -1338,6 +1481,7 @@ const App: React.FC = () => {
           currentUser={currentUser}
           users={users}
           initialData={editingRecord}
+          existingRecords={allData} // Pass all records to check for duplicates
         />
       )}
       

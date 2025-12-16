@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { KnowledgeArticle, User } from '../types';
-import { BookOpen, Search, ChevronDown, ChevronUp, Plus, Edit2, Trash2, X, Save, Clock, User as UserIcon } from 'lucide-react';
+import { BookOpen, Search, ChevronDown, ChevronUp, Plus, Edit2, Trash2, X, Save, Clock, User as UserIcon, Image as ImageIcon, Loader2, Upload } from 'lucide-react';
 import { db } from '../services/firebase'; // Assuming we will hook this up later, currently using local state for demo if needed
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
@@ -37,6 +37,8 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ currentUser, onClo
   // Editor State
   const [isEditing, setIsEditing] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Partial<KnowledgeArticle>>({});
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canEdit = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
 
@@ -45,6 +47,69 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ currentUser, onClo
      // In a real app, fetch from Firestore here
      // const fetchArticles = async () => { ... }
   }, []);
+
+  // Image Compression Logic
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            const img = new Image();
+            img.src = e.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Max width 800px is good for reading on mobile/tablet while keeping size small
+                const MAX_WIDTH = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    // Fill white background (for transparency issues)
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Compress to JPEG at 0.6 quality (High compression, decent text readability)
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    resolve(dataUrl);
+                } else {
+                    reject(new Error("Canvas context failed"));
+                }
+            };
+            img.onerror = (err) => reject(new Error("Image loading failed"));
+        };
+        reader.onerror = (err) => reject(new Error("File reading failed"));
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingImage(true);
+    try {
+        const compressedBase64 = await compressImage(file);
+        setEditingArticle(prev => ({ ...prev, image: compressedBase64 }));
+    } catch (error) {
+        console.error("Image compression error:", error);
+        alert("Lỗi khi xử lý ảnh. Vui lòng chọn ảnh khác.");
+    } finally {
+        setIsProcessingImage(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveImage = () => {
+      setEditingArticle(prev => ({ ...prev, image: undefined }));
+  };
 
   const handleSave = () => {
     if (!editingArticle.title || !editingArticle.content) {
@@ -61,6 +126,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ currentUser, onClo
             id: Date.now().toString(),
             title: editingArticle.title!,
             content: editingArticle.content!,
+            image: editingArticle.image,
             author: currentUser.name,
             date: new Date().toISOString().split('T')[0],
             role: 'DSA' // Default visible to all
@@ -124,6 +190,43 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ currentUser, onClo
                     onChange={e => setEditingArticle({...editingArticle, title: e.target.value})}
                   />
               </div>
+              
+              {/* Image Upload Area */}
+              <div className="mb-4">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Hình ảnh minh họa (Tùy chọn)</label>
+                  {editingArticle.image ? (
+                      <div className="relative w-full max-w-sm rounded-lg overflow-hidden border border-gray-200 shadow-sm group">
+                          <img src={editingArticle.image} alt="Preview" className="w-full h-auto object-cover" />
+                          <button 
+                            onClick={handleRemoveImage}
+                            className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full shadow-md hover:bg-red-700 transition-colors"
+                            title="Xóa ảnh"
+                          >
+                              <Trash2 size={16} />
+                          </button>
+                      </div>
+                  ) : (
+                      <div className="flex items-center">
+                          <input 
+                            ref={fileInputRef}
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleImageUpload} 
+                            className="hidden" 
+                            id="article-image-upload"
+                          />
+                          <label 
+                            htmlFor="article-image-upload" 
+                            className={`flex items-center px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-600 text-sm font-medium cursor-pointer hover:bg-gray-100 hover:border-gray-400 transition-colors ${isProcessingImage ? 'opacity-50 cursor-wait' : ''}`}
+                          >
+                              {isProcessingImage ? <Loader2 size={18} className="animate-spin mr-2"/> : <Upload size={18} className="mr-2"/>}
+                              {isProcessingImage ? 'Đang nén ảnh...' : 'Tải ảnh lên (Tự động nén)'}
+                          </label>
+                          <span className="ml-3 text-xs text-gray-400 italic">Hỗ trợ JPG, PNG (Max 800px)</span>
+                      </div>
+                  )}
+              </div>
+
               <div className="mb-4 flex-1 flex flex-col">
                   <label className="block text-sm font-bold text-gray-700 mb-1">Nội dung (Hỗ trợ xuống dòng)</label>
                   <textarea 
@@ -134,7 +237,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ currentUser, onClo
                   />
               </div>
               <div className="flex gap-3">
-                  <button onClick={() => setIsEditing(false)} className="flex-1 py-3 border border-gray-300 rounded-lg font-bold text-gray-600">Hủy</button>
+                  <button onClick={() => setIsEditing(false)} className="flex-1 py-3 border border-gray-300 rounded-lg font-bold text-gray-600 hover:bg-gray-50">Hủy</button>
                   <button onClick={handleSave} className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 flex items-center justify-center">
                       <Save size={18} className="mr-2"/> Lưu Bài Viết
                   </button>
@@ -168,7 +271,10 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ currentUser, onClo
                                     onClick={() => setExpandedId(isExpanded ? null : article.id)}
                                   >
                                       <div className="flex-1 pr-4">
-                                          <h3 className={`font-bold text-base md:text-lg mb-1 ${isExpanded ? 'text-blue-800' : 'text-gray-800'}`}>{article.title}</h3>
+                                          <h3 className={`font-bold text-base md:text-lg mb-1 flex items-center ${isExpanded ? 'text-blue-800' : 'text-gray-800'}`}>
+                                              {article.image && <ImageIcon size={16} className="text-blue-500 mr-2 flex-shrink-0" />}
+                                              {article.title}
+                                          </h3>
                                           <div className="flex items-center text-xs text-gray-400 space-x-3">
                                               <span className="flex items-center"><UserIcon size={10} className="mr-1"/> {article.author}</span>
                                               <span className="flex items-center"><Clock size={10} className="mr-1"/> {article.date}</span>
@@ -182,6 +288,14 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ currentUser, onClo
                                   {isExpanded && (
                                       <div className="px-4 pb-4 animate-in slide-in-from-top-2 fade-in duration-200">
                                           <div className="h-px w-full bg-blue-100 mb-3"></div>
+                                          
+                                          {/* Article Image Display */}
+                                          {article.image && (
+                                              <div className="mb-4 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                                                  <img src={article.image} alt={article.title} className="w-full h-auto object-cover max-h-[400px]" />
+                                              </div>
+                                          )}
+
                                           <div className="text-gray-700 leading-relaxed text-sm md:text-base whitespace-pre-line">
                                               {article.content}
                                           </div>
