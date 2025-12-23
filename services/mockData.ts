@@ -8,7 +8,7 @@ export const MOCK_USERS: User[] = [
       name: 'System Admin', 
       role: 'ADMIN',
       phoneNumber: '0909000111',
-      avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJJSURBVHgB7Zq9jxpBEIbnDVwcC5bM2LhIEomERMRObEQU/wUQKZK/I0KkCBG5CImIyI0tWzYSEuTGRoaNjc8yM/Z4z9zu9m2PZ6bao5WmZ7p7+ulhprt6Z87n81k1y+WyWq/X1WazqTabjZfVarWqFovFzD1e/X6/2u/3XjabTfX58+d/7nmx2+28rP1+Xz08PMy84/V8PquvX7962YfRaFSPj48z73g9HA7V9fW1l30YjUbV169fpx7yenz8/5XyYRiG1Xg8nnrH6/PzszgIfRiPx9VwOJytx4v3s9lscRD6MBqNqtFoNHOPVz4Iffj+/bs4tFwuh8uHl5eX4iB0Qj6E8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIh9+Pz5szi0XC6Hy4d3796Jg9AJ+RDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEPvQ7/eLQ8vlcrh8eP/+\/dQ9XqfTqXj50O12q+fn56l3vA6HQ3V1deVlH7rdbrVer2fe8Xp7e6uOxyMv+/D169f/3POi1Wp5Wfv9vvr06dPMO17/Ad7yJlb1Q/IwAAAAAElFTkSuQmCC'
+      avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJJSURBVHgB7Zq9jxpBEIbnDVwcC5bM2LhIEomERMRObEQU/wUQKZK/I0KkCBG5CImIyI0tWzYSEuTGRoaNjc8yM/Z4z9zu9m2PZ6bao5WmZ7p7+ulhprt6Z87n81k1y+WyWq/X1WazqTabjZfVarWqFovFzD1e/X6/2u/3XjabTfX58+d/7nmx2+28rP1+Xz08PMy84/V8PquvX7962YfRaFSPj48z73g9HA7V9fW1l30YjUbV169fpx7yenz8/5XyYRiG1Xg8nnrH6/PzszgIfRiPx9VwOJytx4v3s9lscRD6MBqNqtFoNHOPVz4Iffj+/bs4tFwuh8uHl5eX4iB0Qj6E8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIh9+Pz5szi0XC6Hy4d3796Jg9AJ+RDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEPvQ7/eLQ8vlcrh8eP/+\/dQ9XqfTqXj50O12q+fn56l3vA6HQ3V1deVlH7rdbrVer2fe8Xp7e6uOxyMv+/D169f/3POi1Wp5Wfv9vvr06dPMO17/Ad7yJlb1Q/IwAAAAAElFTkSuQmCC'
   },
   { id: 'rsm1', username: 'rsm_hcm', name: 'NGUYỄN VĂN A (RSM)', role: 'RSM', parentId: 'admin', phoneNumber: '0912345678' },
   
@@ -34,6 +34,12 @@ export const MOCK_USERS: User[] = [
 ];
 
 export const generateMockData = (): SalesRecord[] => {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
   return [
     {
       id: '1',
@@ -41,7 +47,7 @@ export const generateMockData = (): SalesRecord[] => {
       name: 'TRẦN MINH THIỆN',
       dss: 'BÙI CÔNG QUẢ',
       smName: 'EAST 2',
-      reportDate: '2025-12-11',
+      reportDate: todayStr,
       status: 'Đã báo cáo',
       approvalStatus: 'Approved',
       directApp: 1,
@@ -71,7 +77,7 @@ export const generateMockData = (): SalesRecord[] => {
       name: 'VÒNG ĐOAN TRANG',
       dss: 'BÙI CÔNG QUẢ',
       smName: 'EAST 2',
-      reportDate: '2025-12-11',
+      reportDate: todayStr,
       status: 'Chưa báo cáo',
       approvalStatus: 'Approved',
       directApp: 0,
@@ -101,7 +107,7 @@ export const generateMockData = (): SalesRecord[] => {
       name: 'TRƯƠNG THỊ THÙY TRANG',
       dss: 'BÙI CÔNG QUẢ',
       smName: 'EAST 2',
-      reportDate: '2025-12-11',
+      reportDate: todayStr,
       status: 'Đã báo cáo',
       approvalStatus: 'Approved',
       directApp: 1,
@@ -131,7 +137,7 @@ export const generateMockData = (): SalesRecord[] => {
       name: 'NGUYỄN THỊ BÍCH TIÊN',
       dss: 'HUỲNH KHANG NHI',
       smName: 'EAST 2',
-      reportDate: '2025-12-11',
+      reportDate: todayStr,
       status: 'Đã báo cáo',
       approvalStatus: 'Pending', // Example of a pending approval
       directApp: 6,
@@ -161,7 +167,7 @@ export const generateMockData = (): SalesRecord[] => {
       name: 'PHAN THỊ THANH HUẾ',
       dss: 'LÊ THỊ NHUNG',
       smName: 'EAST 2',
-      reportDate: '2025-12-11',
+      reportDate: todayStr,
       status: 'Đã báo cáo',
       approvalStatus: 'Approved',
       directApp: 2,

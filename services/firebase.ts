@@ -40,12 +40,18 @@ export const ensureAuth = async (): Promise<{ success: boolean; error?: string }
     console.log("✅ Firebase Auth: Signed in anonymously");
     return { success: true };
   } catch (error: any) {
-    // Nếu lỗi là do chưa cấu hình Auth hoặc chưa bật Anonymous, chỉ warn và fallback về offline
-    if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
-       console.warn(`⚠️ Firebase Auth Config Issue (${error.code}): Switching to Offline Mode.`);
+    // Xử lý các lỗi quota hoặc config
+    const errorCode = error.code;
+    
+    if (errorCode === 'auth/configuration-not-found' || errorCode === 'auth/operation-not-allowed') {
+       console.warn(`⚠️ Firebase Config Error (${errorCode}): Switching to Offline Mode.`);
+    } else if (errorCode === 'resource-exhausted') {
+       console.warn(`⚠️ Firebase Quota Exceeded: Switching to Offline Mode.`);
     } else {
-       console.error("❌ Firebase Auth Error:", error.code, error.message);
+       console.error("❌ Firebase Auth Error:", errorCode, error.message);
     }
-    return { success: false, error: error.code };
+    
+    // Trả về false để App chuyển sang dùng LocalStorage
+    return { success: false, error: errorCode };
   }
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SalesRecord, User } from '../types';
-import { X, Save, UserCheck, Send, Loader2, AlertTriangle, Info, RefreshCw } from 'lucide-react';
+import { X, Save, UserCheck, Send, Loader2, AlertTriangle, Info, RefreshCw, Database } from 'lucide-react';
 
 interface EntryFormProps {
   onClose: () => void;
@@ -14,9 +14,11 @@ interface EntryFormProps {
 export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUser, users, initialData, existingRecords = [] }) => {
   
   const isDSALogin = currentUser.role === 'DSA';
+  const isAdminOrManager = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
   
   // "Real" editing comes from either clicking Edit on table (initialData) OR auto-detecting an existing record (smartEdit)
   const [smartEditRecord, setSmartEditRecord] = useState<SalesRecord | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const isEditing = !!initialData || !!smartEditRecord;
 
@@ -34,15 +36,20 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     let defaultSm = '';
 
     if (isDSALogin && currentUser.parentId) {
-      const dssUser = users.find(u => u.id === currentUser.parentId);
-      if (dssUser) {
-        defaultDss = dssUser.name;
-        if (dssUser.parentId) {
-          const smUser = users.find(u => u.id === dssUser.parentId);
-          if (smUser) defaultSm = smUser.name;
+      const parentUser = users.find(u => u.id === currentUser.parentId);
+      if (parentUser) {
+        if (parentUser.role === 'DSS') {
+            defaultDss = parentUser.name;
+            const smUser = users.find(u => u.id === parentUser.parentId);
+            if (smUser) defaultSm = smUser.name;
+        } else if (parentUser.role === 'SM') {
+            // Direct report to SM
+            defaultDss = parentUser.name; // SM acts as direct manager
+            defaultSm = parentUser.name; // SM is also the SM
         }
       }
     } else if (currentUser.role === 'DSS') {
+       defaultDss = currentUser.name;
        const smUser = users.find(u => u.id === currentUser.parentId);
        if (smUser) defaultSm = smUser.name;
     }
@@ -108,59 +115,44 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     }
   }, [initialData]);
 
-  // 2. Smart Detection: If not explicit edit, check if record exists for Date+Code
+  // --- COLLISION DETECTION LOGIC (Moved to top level for rendering Debug Info) ---
+  const existingCollision = useMemo(() => {
+    if (!formData.dsaCode || !formData.reportDate) return undefined;
+    
+    // Normalize Input Code for comparison (Safe Check)
+    const code = formData.dsaCode || '';
+    const normalizedInputCode = code.trim().toUpperCase();
+
+    // Find any record that matches DSA + Date, excluding the one we are currently editing (if any)
+    return existingRecords.find(r => 
+        (r.dsaCode || '').trim().toUpperCase() === normalizedInputCode && 
+        r.reportDate === formData.reportDate &&
+        r.id !== initialData?.id
+    );
+  }, [formData.dsaCode, formData.reportDate, existingRecords, initialData]);
+
+  // 2. Smart Detection: Real-time visual feedback for the user
   useEffect(() => {
-      // Skip if we are already in "Explicit Edit Mode" (clicked from table)
-      if (initialData) return;
+      if (initialData) return; // Ignore if explicit edit
 
-      if (formData.dsaCode && formData.reportDate) {
-          const existing = existingRecords.find(r => 
-              r.dsaCode === formData.dsaCode && 
-              r.reportDate === formData.reportDate
-          );
-
-          // CASE 1: Record exists and is ALREADY REPORTED
-          if (existing && existing.status === 'Đã báo cáo') {
-              // Switch to Smart Edit Mode
-              // Only update if the ID is different to avoid infinite loop or flickering
-              if (smartEditRecord?.id !== existing.id) {
-                  setSmartEditRecord(existing);
-                  setFormData(existing); // Auto-fill form with existing data
-              }
-          } 
-          // CASE 2: Record exists but is PLACEHOLDER ('Chưa báo cáo') or NO Record
-          else {
-              // If we were previously in Smart Edit (e.g. switched from a Reported date to Unreported date)
-              if (smartEditRecord) {
-                  setSmartEditRecord(null);
-                  // Reset key fields to 0 but keep identity info
-                  setFormData(prev => ({
-                      ...defaultState, // Reset to defaults
-                      dsaCode: prev.dsaCode, // Keep selected user
-                      name: prev.name,
-                      dss: prev.dss,
-                      smName: prev.smName,
-                      reportDate: prev.reportDate, // Keep selected date
-                      // If placeholder exists, use its ID to overwrite. Else undefined.
-                      id: existing ? existing.id : undefined 
-                  }));
-              } else {
-                  // We are currently in Create Mode. 
-                  // Just ensure we capture the placeholder ID if it exists, so we overwrite it instead of creating a duplicate.
-                  const targetId = existing ? existing.id : undefined;
-                  // Only update state if ID actually changed to prevent loops
-                  if (formData.id !== targetId) {
-                      setFormData(prev => {
-                          const newData = { ...prev };
-                          if (targetId) newData.id = targetId;
-                          else delete newData.id;
-                          return newData;
-                      });
-                  }
-              }
+      if (existingCollision) {
+          if (existingCollision.status === 'Đã báo cáo') {
+             // If we found a reported record, load it into the form so user sees previous values
+             if (smartEditRecord?.id !== existingCollision.id) {
+                 setSmartEditRecord(existingCollision);
+                 setFormData(existingCollision);
+             }
+          } else {
+             // Found a placeholder (Chưa báo cáo) - We don't overwrite form data, but we know we will overwrite this ID
+             setSmartEditRecord(null);
           }
+      } else {
+         setSmartEditRecord(null);
       }
-  }, [formData.dsaCode, formData.reportDate, existingRecords, initialData, smartEditRecord]);
+  }, [existingCollision, initialData, smartEditRecord]);
+
+  // Determine the Final ID that will be used (Debug Info)
+  const targetId = initialData?.id || existingCollision?.id || formData.id || 'NEW_ID';
 
   // Get currently selected user to show avatar
   const selectedUser = useMemo(() => {
@@ -182,15 +174,29 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     const selectedUser = users.find(u => u.id === userId);
     
     if (selectedUser) {
-        const dssUser = users.find(u => u.id === selectedUser.parentId);
-        const smUser = dssUser ? users.find(u => u.id === dssUser.parentId) : null;
+        const directManager = users.find(u => u.id === selectedUser.parentId);
+        
+        let newDss = '';
+        let newSm = '';
+
+        if (directManager) {
+            if (directManager.role === 'DSS') {
+                newDss = directManager.name;
+                const smUser = users.find(u => u.id === directManager.parentId);
+                newSm = smUser ? smUser.name : '';
+            } else if (directManager.role === 'SM') {
+                // Direct to SM
+                newDss = directManager.name; // Use SM name as Direct Manager
+                newSm = directManager.name;
+            }
+        }
 
         setFormData(prev => ({
             ...prev,
             dsaCode: selectedUser.dsaCode || '',
             name: selectedUser.name,
-            dss: dssUser ? dssUser.name : '',
-            smName: smUser ? smUser.name : ''
+            dss: newDss,
+            smName: newSm
         }));
     } else {
         setFormData(prev => ({
@@ -227,33 +233,53 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent double click
+
+    setIsSubmitting(true);
+    
+    // STRICT COLLISION CHECK AT SUBMIT TIME
+    // Even if the UI didn't update yet, we check raw data
+    const normalizedCode = (formData.dsaCode || '').trim().toUpperCase();
+    
+    // Find collision again to be 100% sure
+    const strictCollision = existingRecords.find(r => 
+        (r.dsaCode || '').trim().toUpperCase() === normalizedCode && 
+        r.reportDate === formData.reportDate &&
+        r.id !== initialData?.id // Don't collide with self if editing
+    );
+
+    // If a collision exists, FORCE use its ID (Merge), otherwise use current/new ID
+    const finalId = initialData?.id || strictCollision?.id || formData.id || (Date.now()).toString();
     
     // Determine Approval Status
     let finalApprovalStatus: 'Approved' | 'Pending' | 'Rejected' = 'Approved';
     
-    if (isEditing) {
-      // If editing (Smart or Explicit), DSA edits go to Pending
-      if (currentUser.role === 'DSA') {
-        finalApprovalStatus = 'Pending';
-      } else {
-        finalApprovalStatus = 'Approved'; 
-      }
+    if (currentUser.role === 'DSA') {
+        // DSA editing existing record -> Pending
+        if ((strictCollision && strictCollision.status === 'Đã báo cáo') || (initialData && initialData.status === 'Đã báo cáo')) {
+            finalApprovalStatus = 'Pending';
+        } else {
+            finalApprovalStatus = 'Approved';
+        }
     } else {
-      // New Record
-      if (currentUser.role === 'DSA') {
-         finalApprovalStatus = 'Approved'; 
-      }
+        finalApprovalStatus = 'Approved'; 
     }
 
-    onSave({
-      ...formData,
-      status: 'Đã báo cáo',
-      approvalStatus: finalApprovalStatus,
-      // Use existing ID if editing, else create new
-      id: (initialData?.id || smartEditRecord?.id || formData.id) || (Date.now()).toString()
-    } as SalesRecord);
-    
-    onClose();
+    // Data Normalization
+    const normalizedData = {
+        ...formData,
+        dsaCode: normalizedCode,
+        status: 'Đã báo cáo',
+        approvalStatus: finalApprovalStatus,
+        id: finalId 
+    };
+
+    // Save
+    onSave(normalizedData as SalesRecord);
+    // Timeout is handled by parent unmounting, but safe to leave
+    setTimeout(() => {
+        if(onClose) onClose();
+    }, 100);
   };
 
   // UI Themes based on Mode
@@ -313,9 +339,16 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
              <div>
                 <h2 className="text-lg font-bold">{modeTitle}</h2>
                 {isEditing && isDSALogin && <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-medium flex items-center mt-1"><AlertTriangle size={12} className="mr-1"/> Sẽ gửi duyệt lại</span>}
+                {/* Debug ID Info for Admin/Manager to verify collision */}
+                {isAdminOrManager && (
+                    <div className="text-[10px] font-mono opacity-80 flex items-center mt-0.5">
+                        <Database size={10} className="mr-1"/>
+                        {targetId === 'NEW_ID' ? 'Tạo ID mới' : `Ghi đè ID: ...${targetId.slice(-6)}`}
+                    </div>
+                )}
              </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded">
+          <button onClick={onClose} disabled={isSubmitting} className="p-1 hover:bg-white/20 rounded">
             <X size={24} />
           </button>
         </div>
@@ -331,6 +364,20 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
                       <p className="text-[11px] text-orange-700 mt-0.5">
                           Hệ thống đã tự động tải dữ liệu ngày {smartEditRecord.reportDate}. <br/>
                           Mọi chỉnh sửa sẽ cần <b>DSS duyệt lại</b> (Pending).
+                      </p>
+                  </div>
+              </div>
+          )}
+
+          {/* Collision Warning for New Entries (When not smart editing but ID exists e.g. placeholder) */}
+          {!smartEditRecord && existingCollision && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start animate-fade-in">
+                  <Info className="text-blue-600 flex-shrink-0 mr-2 mt-0.5" size={18} />
+                  <div>
+                      <p className="text-xs text-blue-800 font-bold">Cập nhật bản ghi có sẵn</p>
+                      <p className="text-[11px] text-blue-700 mt-0.5">
+                          Đã tìm thấy bản ghi (ID: {existingCollision.id.slice(0,8)}...) cho ngày này. 
+                          Dữ liệu sẽ được <b>ghi đè</b> thay vì tạo mới (Tránh trùng lặp).
                       </p>
                   </div>
               </div>
@@ -381,7 +428,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
                 />
               </div>
                <div className="bg-indigo-50 p-2 rounded border border-indigo-100 shadow-sm">
-                <label className="block text-xs font-bold text-indigo-800">DSS</label>
+                <label className="block text-xs font-bold text-indigo-800">QL Trực Tiếp / DSS</label>
                 <input 
                   name="dss" 
                   value={formData.dss || ''}
@@ -490,12 +537,22 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
 
           <div className="pt-4">
              {isEditing && isDSALogin ? (
-                <button type="submit" className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all transform hover:-translate-y-0.5">
-                  <Send className="mr-2" size={18} /> Cập Nhật & Gửi Duyệt
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-wait"
+                >
+                   {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="mr-2" size={18} />}
+                   {isSubmitting ? 'Đang gửi...' : 'Cập Nhật & Gửi Duyệt'}
                 </button>
              ) : (
-                <button type="submit" className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${isEditing ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:ring-emerald-500'}`}>
-                  <Save className="mr-2" size={18} /> {isEditing ? 'Cập Nhật' : 'Lưu Báo Cáo'}
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white transition-all transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-wait ${isEditing ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:ring-emerald-500'}`}
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" size={18} />}
+                  {isSubmitting ? 'Đang lưu...' : (isEditing ? 'Cập Nhật' : 'Lưu Báo Cáo')}
                 </button>
              )}
           </div>

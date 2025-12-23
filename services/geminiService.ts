@@ -7,6 +7,7 @@ export const createChatSession = (data: SalesRecord[]) => {
     return null;
   }
 
+  // Initialization must use named apiKey parameter
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Create a summarized context of the data to save tokens
@@ -35,8 +36,9 @@ export const createChatSession = (data: SalesRecord[]) => {
     5. Đơn vị tiền tệ là VND, hãy format số tiền cho dễ đọc (ví dụ: 10 triệu, 100k).
   `;
 
+  // Use the correct model name for text tasks
   const chat = ai.chats.create({
-    model: "gemini-2.5-flash",
+    model: "gemini-3-flash-preview",
     config: {
       systemInstruction: systemInstruction,
     },

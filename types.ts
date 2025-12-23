@@ -56,8 +56,11 @@ export interface DashboardStats {
   totalRecords: number;
   reportedCount: number;
   totalVolume: number;
+  totalDirectVolume: number; // Only Direct Volume (Cash)
   totalApps: number;
-  totalLoanCRC: number; // Changed from totalApps to specific CRC Loan count
+  totalLoans: number; // Total Cash Loans
+  totalLoansFEOL: number; // New: Total FEOL Loans for Case Size
+  totalLoanCRC: number; 
   totalBanca: number;
 }
 
