@@ -14,7 +14,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Image Compression Logic (Client side)
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -24,7 +23,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
             img.src = e.target?.result as string;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 600; // Mobile friendly size
+                const MAX_WIDTH = 400; // Reduced max width
                 let width = img.width;
                 let height = img.height;
 
@@ -40,7 +39,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
                     ctx.fillStyle = '#FFFFFF';
                     ctx.fillRect(0, 0, width, height);
                     ctx.drawImage(img, 0, 0, width, height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Reduced quality
                     resolve(dataUrl);
                 } else {
                     reject(new Error("Canvas failed"));
@@ -81,7 +80,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col">
         
-        {/* Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex justify-between items-center text-white">
             <h3 className="font-bold text-lg flex items-center"><UserIcon className="mr-2" size={20}/> Hồ sơ cá nhân</h3>
             <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full transition-colors"><X size={20}/></button>
@@ -89,7 +87,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
 
         <div className="p-6 flex flex-col items-center space-y-6">
             
-            {/* Avatar Section */}
             <div className="relative group">
                 <div className="w-32 h-32 rounded-full border-4 border-emerald-100 dark:border-emerald-900 shadow-md overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                     {isProcessing ? (
@@ -118,13 +115,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
             </div>
 
             <div className="w-full space-y-4">
-                {/* User Info (Read Only) */}
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-gray-800 dark:text-white">{currentUser.name}</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{currentUser.role} | {currentUser.dsaCode || currentUser.username}</p>
                 </div>
 
-                {/* Phone Input */}
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600">
                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Số điện thoại (Zalo)</label>
                     <div className="flex items-center">
@@ -140,7 +135,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
                 </div>
             </div>
 
-            {/* Save Button */}
             <button 
                 onClick={handleSave}
                 disabled={isProcessing}

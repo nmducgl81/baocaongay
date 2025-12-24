@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { SalesRecord, DashboardStats, User, ViewMode, AppScreen } from './types';
 import { generateMockData, MOCK_USERS } from './services/mockData';
 import { authService } from './services/authService';
@@ -12,11 +12,11 @@ import { UserManagement } from './components/UserManagement';
 import { LoanCalculator } from './components/LoanCalculator'; 
 import { KnowledgeBase } from './components/KnowledgeBase';
 import { ProfileSettings } from './components/ProfileSettings';
-import { UserGuide } from './components/UserGuide'; // Import UserGuide
+import { UserGuide } from './components/UserGuide'; 
 
 // Firebase Imports
 import { db, ensureAuth } from './services/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
 
 import { 
   Users, 
@@ -60,7 +60,7 @@ import {
   Lightbulb,
   PieChart,
   Target,
-  HelpCircle // Import Help Icon
+  HelpCircle 
 } from 'lucide-react';
 
 const MOTIVATIONAL_QUOTES = [
@@ -92,7 +92,6 @@ const App: React.FC = () => {
     return (localStorage.getItem('app_theme') as 'light' | 'dark') || 'light';
   });
 
-  // Scale: 100, 90, 80, 70, 60 (Percentage)
   const [uiScale, setUiScale] = useState<number>(() => {
     return Number(localStorage.getItem('app_scale')) || 100;
   });
@@ -110,9 +109,7 @@ const App: React.FC = () => {
   // Apply Scale Class to HTML
   useEffect(() => {
     const root = window.document.documentElement;
-    // Remove all scale classes
     root.classList.remove('ui-scale-100', 'ui-scale-90', 'ui-scale-80', 'ui-scale-70', 'ui-scale-60');
-    // Add current scale class
     root.classList.add(`ui-scale-${uiScale}`);
     localStorage.setItem('app_scale', uiScale.toString());
   }, [uiScale]);
@@ -154,7 +151,7 @@ const App: React.FC = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showUserGuide, setShowUserGuide] = useState(false); // State for User Guide
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const [editingRecord, setEditingRecord] = useState<SalesRecord | null>(null);
   
   // Navigation State
@@ -180,7 +177,6 @@ const App: React.FC = () => {
     return localStorage.getItem('statusFilter') || 'all';
   });
 
-  // NEW FILTERS: SM and DSS
   const [smFilter, setSmFilter] = useState<string>(() => {
     return localStorage.getItem('smFilter') || 'all';
   });
@@ -191,22 +187,15 @@ const App: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const dataRef = useRef(allData);
 
-  // Avatar Upload Ref
-  const headerAvatarRef = useRef<HTMLInputElement>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-
-  // Random Quote State
   const randomQuote = useMemo(() => {
     const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
     return MOTIVATIONAL_QUOTES[randomIndex];
   }, []);
 
-  // Update ref when state changes
   useEffect(() => {
     dataRef.current = allData;
   }, [allData]);
 
-  // --- FIREBASE SYNC LOGIC ---
   const sanitizeForFirestore = (obj: any): any => {
       if (obj === null || obj === undefined) return null;
       if (typeof obj !== 'object') return obj;
@@ -215,70 +204,77 @@ const App: React.FC = () => {
       Object.keys(obj).forEach(key => { if (obj[key] !== undefined) newObj[key] = sanitizeForFirestore(obj[key]); });
       return newObj;
   };
-  
-  useEffect(() => {
-    let unsubscribeSales: (() => void) | undefined;
-    let unsubscribeUsers: (() => void) | undefined;
 
-    const initializeListeners = async () => {
-      setIsLoadingData(true);
-      // Fallback if DB not present or already known offline
-      if (!db) { 
-          if (allData.length === 0) setAllData(generateMockData()); 
-          setIsOnline(false); // Explicitly mark offline
-          setIsLoadingData(false); 
-          return; 
-      }
-      try {
+  // --- DATA FETCHING (OPTIMIZED) ---
+  const fetchData = useCallback(async (force = false) => {
+    // Prevent fetching if we are offline and not forcing a retry
+    if (!force && !db) return;
+
+    setIsLoadingData(true);
+    setPermissionError(false);
+
+    try {
         const authResult = await ensureAuth();
         if (!authResult.success) {
-           console.log("⚠️ App running offline due to:", authResult.error);
-           setIsOnline(false); 
-           setFirebaseError(authResult.error || 'unknown_error');
-           // Initialize with Mock Data if LocalStorage is empty
-           if (allData.length === 0) setAllData(generateMockData()); 
-           setIsLoadingData(false); 
-           return;
+            console.log("⚠️ Offline mode activated:", authResult.error);
+            setIsOnline(false);
+            setFirebaseError(authResult.error || 'unknown_error');
+            // If data empty, load mock
+            if (allData.length === 0) setAllData(generateMockData());
+            setIsLoadingData(false);
+            return;
         }
-        
+
         setIsOnline(true);
-        unsubscribeUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-            const remoteUsers = snapshot.docs.map(doc => doc.data() as User);
-            setUsers(remoteUsers); 
-            localStorage.setItem('app_users', JSON.stringify(remoteUsers)); 
+        setFirebaseError(null);
+
+        // 1. Fetch Users (One-time fetch, NOT real-time)
+        const usersSnapshot = await getDocs(collection(db!, "users"));
+        if (!usersSnapshot.empty) {
+            const remoteUsers = usersSnapshot.docs.map(doc => doc.data() as User);
+            setUsers(remoteUsers);
+            localStorage.setItem('app_users', JSON.stringify(remoteUsers));
             
-            // Sync Current User if their data changed remotely
+            // Sync Current User details
             if (currentUser) {
                const updatedSelf = remoteUsers.find(u => u.id === currentUser.id);
                if (updatedSelf) setCurrentUser(updatedSelf);
             }
-        }, (error) => {
-            console.warn("Snapshot users error (Offline fallback):", error);
-            setIsOnline(false);
-        });
+        }
 
-        const sixtyDaysAgo = new Date(new Date().setDate(new Date().getDate() - 60)).toISOString().split('T')[0];
-        const q = query(collection(db, "sales_records"), where("reportDate", ">=", sixtyDaysAgo));
-        unsubscribeSales = onSnapshot(q, (snapshot) => {
-            const remoteSales = snapshot.docs.map(doc => doc.data() as SalesRecord);
-            setAllData(remoteSales); 
-            localStorage.setItem('sales_records', JSON.stringify(remoteSales));
-            setLastUpdated(new Date()); 
-            setIsLoadingData(false);
-        }, (error) => {
-            console.warn("Snapshot sales error (Offline fallback):", error);
-            setIsOnline(false);
-            setIsLoadingData(false);
-        });
+        // 2. Fetch Sales Records (One-time fetch, optimized for 30 days)
+        // Optimization: Default to 30 days to save Reads
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const dateString = thirtyDaysAgo.toISOString().split('T')[0];
 
-      } catch (error) { 
-          console.error("Critical Init Error:", error);
-          setIsOnline(false);
-          setIsLoadingData(false); 
-      }
-    };
-    initializeListeners();
-    return () => { if (unsubscribeSales) unsubscribeSales(); if (unsubscribeUsers) unsubscribeUsers(); };
+        const q = query(
+            collection(db!, "sales_records"), 
+            where("reportDate", ">=", dateString)
+        );
+        
+        const salesSnapshot = await getDocs(q);
+        const remoteSales = salesSnapshot.docs.map(doc => doc.data() as SalesRecord);
+        
+        setAllData(remoteSales);
+        localStorage.setItem('sales_records', JSON.stringify(remoteSales));
+        setLastUpdated(new Date());
+
+    } catch (error: any) {
+        console.warn("Fetch Error:", error);
+        setIsOnline(false);
+        if (error.code === 'permission-denied') {
+            setPermissionError(true);
+        }
+    } finally {
+        setIsLoadingData(false);
+    }
+  }, [currentUser]); // Dependency on currentUser mostly for syncing self
+
+  // Initial Load
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
   useEffect(() => { localStorage.setItem('viewMode', viewMode); }, [viewMode]);
@@ -315,7 +311,6 @@ const App: React.FC = () => {
     if (smFilter !== 'all') actualRecords = actualRecords.filter(r => r.smName === smFilter);
     if (dssFilter !== 'all') actualRecords = actualRecords.filter(r => r.dss === dssFilter);
 
-    // --- Optimization: Short-circuit if looking for explicit status ---
     if (statusFilter === 'Đã báo cáo') {
         return actualRecords.filter(r => r.status === 'Đã báo cáo');
     }
@@ -324,15 +319,12 @@ const App: React.FC = () => {
     }
 
     // --- LOGIC: GENERATE MISSING RECORDS (Chưa báo cáo) ---
-    // Only generate if user wants to see 'Chưa báo cáo' or 'All'
-    // To prevent crashes, limit virtual generation to ~31 days range
     const dayDiff = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24);
     let virtualRecords: SalesRecord[] = [];
 
     if (dayDiff <= 31) {
         const dsaUsersInScope = users.filter(u => u.role === 'DSA' && visibleDSAIds.includes(u.dsaCode || ''));
         
-        // Helper to get array of dates strings (YYYY-MM-DD)
         const getDates = (start: string, end: string) => {
             const arr = [];
             const dt = new Date(start);
@@ -345,14 +337,10 @@ const App: React.FC = () => {
         };
         const dateRange = getDates(startDate, endDate);
 
-        // Create a fast lookup Set: "DSACODE_DATE"
-        // Use actualRecords so we know who HAS reported
         const existingMap = new Set(actualRecords.map(r => `${r.dsaCode}_${r.reportDate}`));
 
-        // Iterate Dates -> Users to find gaps
         dateRange.forEach(date => {
             dsaUsersInScope.forEach(user => {
-                // Apply SM/DSS Filter to Virtual Users too
                 let matchesFilter = true;
                 if (smFilter !== 'all' || dssFilter !== 'all') {
                     const parent = users.find(u => u.id === user.parentId);
@@ -367,13 +355,12 @@ const App: React.FC = () => {
                 if (matchesFilter) {
                     const key = `${user.dsaCode}_${date}`;
                     if (!existingMap.has(key)) {
-                        // Generate Virtual Record
                         const parent = users.find(u => u.id === user.parentId);
                         const grandParent = parent ? users.find(u => u.id === parent.parentId) : null;
                         const smName = grandParent?.role === 'SM' ? grandParent.name : (parent?.role === 'SM' ? parent.name : '');
 
                         virtualRecords.push({
-                            id: `virt-${user.id}-${date}`, // Unique ID for key
+                            id: `virt-${user.id}-${date}`, 
                             dsaCode: user.dsaCode || '',
                             name: user.name,
                             dss: parent?.role === 'DSS' ? parent.name : '',
@@ -381,7 +368,6 @@ const App: React.FC = () => {
                             reportDate: date,
                             status: 'Chưa báo cáo',
                             approvalStatus: 'Approved',
-                            // Default Zeros
                             directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0, 
                             directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0, 
                             directVolume: 0, directBanca: 0, directRol: '0.0%', 
@@ -398,9 +384,6 @@ const App: React.FC = () => {
         return virtualRecords;
     }
 
-    // Default: 'all' -> Combine Actual + Virtual
-    // Filter actual to exclude 'Chưa báo cáo' placeholders that might exist in DB (unlikely but safe)
-    // and combine with generated virtuals
     const realReports = actualRecords.filter(r => r.status === 'Đã báo cáo' || r.status.startsWith('Ngày'));
     return [...realReports, ...virtualRecords];
 
@@ -412,10 +395,10 @@ const App: React.FC = () => {
         totalRecords: acc.totalRecords + 1, 
         reportedCount: curr.status === 'Đã báo cáo' ? acc.reportedCount + 1 : acc.reportedCount, 
         totalVolume: acc.totalVolume + curr.directVolume + (curr.directVolumeFEOL || 0), 
-        totalDirectVolume: acc.totalDirectVolume + curr.directVolume, // Only Direct Volume (Cash) for Case Size
+        totalDirectVolume: acc.totalDirectVolume + curr.directVolume, 
         totalApps: acc.totalApps + curr.directApp, 
-        totalLoans: acc.totalLoans + curr.directLoan, // Only Cash Loans
-        totalLoansFEOL: acc.totalLoansFEOL + (curr.directLoanFEOL || 0), // Include FEOL Loans for Case Size
+        totalLoans: acc.totalLoans + curr.directLoan, 
+        totalLoansFEOL: acc.totalLoansFEOL + (curr.directLoanFEOL || 0), 
         totalLoanCRC: acc.totalLoanCRC + (curr.directLoanCRC || 0), 
         totalBanca: acc.totalBanca + curr.directBanca 
     }), { totalRecords: 0, reportedCount: 0, totalVolume: 0, totalDirectVolume: 0, totalApps: 0, totalLoans: 0, totalLoansFEOL: 0, totalLoanCRC: 0, totalBanca: 0 });
@@ -430,18 +413,12 @@ const App: React.FC = () => {
     return target.length;
   }, [users, currentUser, smFilter, dssFilter]);
 
-  // --- NEW METRICS CALCULATIONS ---
-  // 1. ProApp: (Total Apps / Days Passed) / Headcount
   const diffTime = Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Inclusive count
-  
-  // Prevent division by zero
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
   const safeHeadcount = Math.max(1, filteredHeadcount);
   const avgAppsPerDay = stats.totalApps / Math.max(1, diffDays);
-  
   const proApp = (avgAppsPerDay / safeHeadcount).toFixed(2);
 
-  // 2. Case Size: Total Volume (Includes FEOL) / (Total Direct Loan + Total FEOL Loan)
   const totalCombinedLoans = stats.totalLoans + stats.totalLoansFEOL;
   const caseSize = totalCombinedLoans > 0 ? (stats.totalVolume / totalCombinedLoans) : 0;
 
@@ -456,11 +433,9 @@ const App: React.FC = () => {
 
   const pendingRecords = useMemo(() => { if (!currentUser || currentUser.role === 'DSA') return []; const visible = authService.getVisibleDSAIds(currentUser, users); return allData.filter(r => visible.includes(r.dsaCode) && r.approvalStatus === 'Pending'); }, [allData, currentUser, users]);
   
-  // Calculate Reports Info for current filter (Today/Specific Date)
   const uniqueReportedCount = useMemo(() => new Set(filteredData.filter(r => r.status === 'Đã báo cáo').map(r => r.dsaCode)).size, [filteredData]);
   const notReportedCount = filteredHeadcount - uniqueReportedCount;
   
-  // Is user looking at today?
   const isViewingToday = useMemo(() => {
       const today = formatDate(new Date());
       return startDate === today && endDate === today;
@@ -480,25 +455,21 @@ const App: React.FC = () => {
   }, [currentUser, allData, dateFilteredGlobalData, users]);
 
   const handleSaveRecord = async (record: SalesRecord) => {
-    // 1. Update Local State & Storage immediately (Optimistic UI)
     setAllData(prev => { 
         const idx = prev.findIndex(r => r.id === record.id); 
         let updated; 
         if (idx !== -1) { updated = [...prev]; updated[idx] = record; } 
         else { updated = [record, ...prev]; } 
-        localStorage.setItem('sales_records', JSON.stringify(updated)); // Persist locally
+        localStorage.setItem('sales_records', JSON.stringify(updated)); 
         return updated; 
     });
     setLastUpdated(new Date()); setEditingRecord(null); setShowForm(false);
     
-    // 2. Try Sync to Firebase if Online
     if (db && isOnline) { 
         try { 
             await setDoc(doc(db, "sales_records", record.id), sanitizeForFirestore(record)); 
         } catch (e: any) { 
             console.warn("Save Failed (Fallback Offline):", e);
-            // Don't error out, just let the user know they are offline? 
-            // We already have the isOnline indicator.
         } 
     }
   };
@@ -522,7 +493,7 @@ const App: React.FC = () => {
   const handleLogout = () => { setCurrentUser(null); localStorage.removeItem('currentUser'); setCurrentScreen('dashboard'); };
   const handleSelectDSA = (dsaCode: string) => { setSelectedDSA(dsaCode); setCurrentScreen('detail'); };
 
-  // User Management Handlers (Fixed missing function errors)
+  // User Management Handlers (Using Optimistic UI + Async Sync)
   const handleAddUser = async (u: User | User[]) => {
     const list = Array.isArray(u) ? u : [u];
     
@@ -565,20 +536,14 @@ const App: React.FC = () => {
     if (db && isOnline) { try { const batch = writeBatch(db); ids.forEach(id => batch.delete(doc(db!, "users", id))); await batch.commit(); } catch(e) {} }
   };
 
-  // --- HANDLE SELF PROFILE UPDATE ---
   const handleUpdateProfile = async (updatedUser: User) => {
-      // 1. Update State
       setCurrentUser(updatedUser);
       setUsers(prev => {
           const updated = prev.map(u => u.id === updatedUser.id ? updatedUser : u);
           localStorage.setItem('app_users', JSON.stringify(updated));
           return updated;
       });
-      
-      // 2. Persist to LocalStorage
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      
-      // 3. Persist to Firestore
       if (db && isOnline) {
           try {
               await setDoc(doc(db, "users", updatedUser.id), sanitizeForFirestore(updatedUser));
@@ -588,35 +553,17 @@ const App: React.FC = () => {
       }
   };
   
-  const refreshData = async () => {
-      setIsLoadingData(true); setPermissionError(false); 
-      if (!db || !isOnline) { setTimeout(() => setIsLoadingData(false), 500); return; }
-      try {
-        const sixtyDaysAgo = new Date(new Date().setDate(new Date().getDate() - 60)).toISOString().split('T')[0];
-        const q = query(collection(db, "sales_records"), where("reportDate", ">=", sixtyDaysAgo));
-        const sales = await getDocs(q); if (!sales.empty) {
-            const data = sales.docs.map(doc => doc.data() as SalesRecord);
-            setAllData(data);
-            localStorage.setItem('sales_records', JSON.stringify(data));
-        }
-        const remUsers = await getDocs(collection(db, "users")); if (!remUsers.empty) {
-            const uData = remUsers.docs.map(doc => doc.data() as User);
-            setUsers(uData);
-            localStorage.setItem('app_users', JSON.stringify(uData));
-        }
-        setLastUpdated(new Date());
-      } catch(e: any) { if (e.code === 'permission-denied') setPermissionError(true); } finally { setIsLoadingData(false); }
+  // Refresh Data Function (Manually triggered)
+  const refreshData = () => {
+      fetchData(true); // Force fetch
   };
 
   const handleHardReset = () => { if(window.confirm("Bạn có chắc chắn muốn xóa Cache và Tải lại dữ liệu?")) { localStorage.removeItem('sales_records'); setAllData([]); refreshData(); } };
   
-  // DATE FILTER HELPERS
   const setFilterToday = () => { setStartDate(formatDate(new Date())); setEndDate(formatDate(new Date())); };
   
   const setFilterWeek = () => {
     const curr = new Date();
-    // getDay(): 0 is Sunday, 1 is Monday.
-    // Calculate difference to get Monday (1)
     const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1);
     const firstDay = new Date(curr.setDate(first));
     setStartDate(formatDate(firstDay));
@@ -632,7 +579,6 @@ const App: React.FC = () => {
 
   const handleDateChange = (start: string, end: string) => { setStartDate(start); setEndDate(end); };
 
-  // IMPLEMENTED: View Pending Records
   const handleViewPending = () => {
     setStatusFilter('Pending');
     setViewMode('table');
@@ -642,13 +588,11 @@ const App: React.FC = () => {
     setEndDate(formatDate(new Date()));
   };
 
-  // IMPLEMENTED: View Not Reported for Manager
   const handleViewNotReported = () => {
     setStatusFilter('Chưa báo cáo');
     setViewMode('table');
   };
 
-  // IMPLEMENTED: Export CSV
   const handleExportCSV = () => {
     if (filteredData.length === 0) {
         alert("Không có dữ liệu để xuất!");
@@ -708,7 +652,15 @@ const App: React.FC = () => {
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentScreen('dashboard')}>
              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-2 rounded-lg shadow-md"><FileText size={22} /></div>
              <div>
-                <h1 className="text-xl font-bold text-gray-800 dark:text-white leading-none">DSA Dashboard</h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold text-gray-800 dark:text-white leading-none">DSA Dashboard</h1>
+                    {currentUser && (
+                        <span className="hidden md:flex items-center text-sm font-normal text-gray-500 dark:text-gray-400">
+                             <span className="mx-2 text-gray-300">|</span> 
+                             Xin chào: <span className="ml-1 font-bold text-emerald-600 dark:text-emerald-400">{currentUser.name}</span>
+                        </span>
+                    )}
+                </div>
                 <p className="text-xs mt-0.5 font-bold uppercase flex items-center">
                     {isLoadingData ? <Loader2 size={10} className="animate-spin mr-1 text-emerald-600"/> : 
                      (isOnline ? <span className="text-emerald-600 dark:text-emerald-400">Online</span> : <span className="text-orange-500">Offline (Local)</span>)}
@@ -717,8 +669,6 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-1 sm:space-x-2">
-             
-             {/* User Avatar - Trigger Profile Modal */}
              <button 
                 onClick={() => setShowProfileModal(true)}
                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors mr-1"
@@ -735,23 +685,10 @@ const App: React.FC = () => {
                 </span>
              </button>
 
-             {/* SCALE CONTROLS (MOBILE ONLY) */}
              <div className="lg:hidden flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mr-1">
-                 <button 
-                    onClick={handleZoomOut} 
-                    disabled={uiScale <= 60}
-                    className="p-1.5 text-gray-500 hover:text-emerald-600 disabled:opacity-30 transition-colors"
-                 >
-                    <ZoomOut size={16} />
-                 </button>
+                 <button onClick={handleZoomOut} disabled={uiScale <= 60} className="p-1.5 text-gray-500 hover:text-emerald-600 disabled:opacity-30 transition-colors"><ZoomOut size={16} /></button>
                  <span className="text-[10px] font-bold w-8 text-center">{uiScale}%</span>
-                 <button 
-                    onClick={handleZoomIn} 
-                    disabled={uiScale >= 100}
-                    className="p-1.5 text-gray-500 hover:text-emerald-600 disabled:opacity-30 transition-colors"
-                 >
-                    <ZoomIn size={16} />
-                 </button>
+                 <button onClick={handleZoomIn} disabled={uiScale >= 100} className="p-1.5 text-gray-500 hover:text-emerald-600 disabled:opacity-30 transition-colors"><ZoomIn size={16} /></button>
              </div>
 
              <button onClick={() => setShowUserGuide(true)} className="flex items-center p-2 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors" title="Hướng dẫn sử dụng">
@@ -779,7 +716,6 @@ const App: React.FC = () => {
           <DSADetail dsaCode={selectedDSA} data={allData} onBack={() => setCurrentScreen('dashboard')} />
         ) : (
           <>
-            {/* MOTIVATIONAL QUOTE BANNER */}
             <div className="mb-6 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-xl p-4 text-white shadow-md relative overflow-hidden animate-in fade-in slide-in-from-top-4">
                  <div className="absolute top-0 right-0 p-4 opacity-10">
                      <Sparkles size={100} />
@@ -790,7 +726,6 @@ const App: React.FC = () => {
                  </div>
             </div>
 
-            {/* ALERT FOR DSA (SELF) */}
             {dsaInfo && !dsaInfo.isReportedToday && (
                 <div className="mb-6 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl py-4 px-5 flex items-center shadow-sm dark:from-red-900/30 dark:to-pink-900/30">
                     <div className="bg-red-100 p-2 rounded-full mr-4"><BellRing className="text-red-600 animate-bounce" size={24} /></div>
@@ -802,7 +737,6 @@ const App: React.FC = () => {
                 </div>
             )}
             
-            {/* ALERT FOR MANAGER (UNREPORTED STAFF) */}
             {currentUser.role !== 'DSA' && notReportedCount > 0 && isViewingToday && (
                 <div className="mb-6 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 rounded-xl p-3 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
                     <div className="flex items-center">
@@ -817,7 +751,6 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* ALERT FOR PENDING APPROVALS */}
             {pendingRecords.length > 0 && (
                 <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
                     <div className="flex items-center">
@@ -828,17 +761,13 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* MODIFIED GRID: Balanced 4 columns on desktop, 8 columns only on very large screens */}
             <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-8 gap-3 mb-8">
               <StatsCard title="Doanh Số" value={`${formatCurrencyCompact(stats.totalVolume)} ₫`} color="red" icon={<DollarSign size={20} />} />
               <StatsCard title="Tổng Banca" value={`${formatCurrencyCompact(stats.totalBanca)} ₫`} color="green" icon={<Briefcase size={20} />} />
               <StatsCard title="% Banca" value={`${bancaPercentage}%`} color="orange" icon={<Percent size={20} />} />
               <StatsCard title="Thẻ (CRC)" value={stats.totalLoanCRC.toString()} color="blue" icon={<CreditCard size={20} />} />
-              
-              {/* NEW CARDS */}
               <StatsCard title="ProApp" value={proApp} color="blue" icon={<BarChart2 size={20} />} />
               <StatsCard title="Case Size" value={`${formatCurrencyCompact(caseSize)}`} color="green" icon={<PieChart size={20} />} />
-
               {dsaInfo ? <StatsCard title="Xếp Hạng" value={`#${dsaInfo.rank}/${dsaInfo.totalDSAs}`} color="green" icon={<Trophy size={20} />} /> : <StatsCard title="Hoạt Động" value={`${uniqueReportedCount}/${filteredHeadcount}`} color="green" icon={<Users size={20} />} />}
               <StatsCard title="Tỷ lệ %" value={filteredHeadcount > 0 ? `${((uniqueReportedCount / filteredHeadcount) * 100).toFixed(0)}%` : '0%'} color="blue" icon={<Activity size={20} />} />
             </div>
@@ -855,7 +784,6 @@ const App: React.FC = () => {
                         <button onClick={setFilterWeek} className="px-2 py-1.5 text-[10px] font-bold bg-blue-50 text-blue-700 rounded-lg whitespace-nowrap">Tuần này</button>
                         <button onClick={setFilterMonth} className="px-2 py-1.5 text-[10px] font-bold bg-purple-50 text-purple-700 rounded-lg whitespace-nowrap">Tháng này</button>
                     </div>
-                    {/* Status Filter */}
                     <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="text-sm bg-gray-50 border-gray-200 rounded-lg">
                         <option value="all">Tất cả trạng thái</option>
                         <option value="Đã báo cáo">Đã báo cáo</option>
@@ -865,7 +793,7 @@ const App: React.FC = () => {
 
                     {showSmFilterUI && <select value={smFilter} onChange={e => setSmFilter(e.target.value)} className="text-sm bg-gray-50 border-gray-200 rounded-lg"><option value="all">Tất cả SM</option>{smOptions.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}</select>}
                     {showDssFilterUI && <select value={dssFilter} onChange={e => setDssFilter(e.target.value)} className="text-sm bg-gray-50 border-gray-200 rounded-lg"><option value="all">Tất cả DSS</option>{dssOptions.map(dss => <option key={dss.id} value={dss.name}>{dss.name}</option>)}</select>}
-                    <button onClick={refreshData} className="p-1.5 text-emerald-600"><RefreshCw size={16} className={isLoadingData ? 'animate-spin' : ''}/></button>
+                    <button onClick={refreshData} className="p-1.5 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors" title="Làm mới dữ liệu"><RefreshCw size={16} className={isLoadingData ? 'animate-spin' : ''}/></button>
                </div>
                <div className="flex items-center gap-2">
                    <div className="bg-gray-100 p-1 rounded-lg flex text-xs">
@@ -887,7 +815,6 @@ const App: React.FC = () => {
         <div className="text-center py-6 mt-4 border-t border-dashed border-gray-200"><a href="https://zalo.me/0867641331" target="_blank" rel="noreferrer" className="text-[10px] font-mono text-gray-300 hover:text-gray-500 transition-colors">Developed by DSS Nguyễn Minh Đức</a></div>
       </main>
 
-      {/* --- MODALS --- */}
       {showForm && (
         <EntryForm onClose={() => setShowForm(false)} onSave={handleSaveRecord} currentUser={currentUser} users={users} initialData={editingRecord} existingRecords={allData} />
       )}

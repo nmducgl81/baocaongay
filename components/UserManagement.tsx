@@ -18,41 +18,34 @@ interface UserManagementProps {
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUser, onAddUser, onUpdateUser, onDeleteUser, onBulkDeleteUsers, onClose }) => {
-  // State for Form Modal
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   
-  // Delete Confirmation State
   const [deleteConfirm, setDeleteConfirm] = useState<{ 
     isOpen: boolean; 
     type: 'single' | 'bulk'; 
-    data: any; // ID for single, IDs array for bulk
+    data: any; 
     message?: string;
     subMessage?: string;
   } | null>(null);
 
-  // Initialize with DSA role by default
   const [formData, setFormData] = useState<Partial<User>>({ role: 'DSA' });
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [autoGenUsername, setAutoGenUsername] = useState(true);
   
-  // Refs for file inputs
-  const fileInputRef = useRef<HTMLInputElement>(null); // For CSV Import
-  const avatarInputRef = useRef<HTMLInputElement>(null); // For Avatar Upload
+  const fileInputRef = useRef<HTMLInputElement>(null); 
+  const avatarInputRef = useRef<HTMLInputElement>(null); 
 
-  // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkManagerId, setBulkManagerId] = useState<string>('');
   const [showBulkAction, setShowBulkAction] = useState(false);
 
-  // --- ENHANCED FILTER STATES ---
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('ALL');
   const [filterManager, setFilterManager] = useState('');
 
-  // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState({
     avatar: true,
     username: true,
@@ -64,7 +57,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     sm: true
   });
   
-  // Column Widths State (Default widths in pixels)
   const [colWidths, setColWidths] = useState<Record<string, number>>({
     checkbox: 50,
     avatar: 80,
@@ -79,19 +71,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   });
 
   const [showColumnSettings, setShowColumnSettings] = useState(false);
-
-  // Resizing Refs
   const resizingRef = useRef<{ startX: number, startWidth: number, colKey: string } | null>(null);
-
-  // Define who can access the screen
   const canAccessManagement = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
 
-  // --- 1. SCOPED VIEW PERMISSIONS (HIERARCHY CHECK) ---
-  // Create a subset of users that the current user is allowed to see/manage.
   const scopedUsers = useMemo(() => {
     if (currentUser.role === 'ADMIN') return users;
-
-    // Build Adjacency List for fast hierarchy traversal
     const parentMap = new Map<string, string[]>();
     users.forEach(u => {
         if (u.parentId) {
@@ -100,14 +84,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             parentMap.set(u.parentId, children);
         }
     });
-
     const visibleIds = new Set<string>();
     const queue = [currentUser.id];
-    
-    // Add self to visible list
     visibleIds.add(currentUser.id);
-
-    // BFS Traversal to find all descendants
     while (queue.length > 0) {
         const currentId = queue.shift()!;
         const children = parentMap.get(currentId) || [];
@@ -118,16 +97,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             }
         });
     }
-
     return users.filter(u => visibleIds.has(u.id));
   }, [users, currentUser]);
 
-  // --- Logic to get list of available parents based on selected role & current user context ---
   const getAvailableParents = (targetRole: string | undefined) => {
     const role = targetRole || 'DSA'; 
     let candidates: User[] = [];
-
-    // Use scopedUsers instead of users to enforce visibility rules in dropdowns
     if (role === 'DSA') {
         candidates = scopedUsers.filter(u => u.role === 'DSS');
     } else if (role === 'DSS') {
@@ -137,11 +112,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     } else if (role === 'RSM') {
         candidates = scopedUsers.filter(u => u.role === 'ADMIN');
     }
-
-    // Special case: If I am SM creating a DSA directly (skip DSS level) or managing my own direct reports
     if (currentUser.role === 'SM') {
         if (role === 'DSA') {
-            // Allow SM to pick themselves as parent or any of their DSS
             const myDSS = scopedUsers.filter(u => u.role === 'DSS');
             candidates = [currentUser, ...myDSS];
         }
@@ -150,7 +122,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             candidates = [currentUser];
         }
     }
-
     return candidates.sort((a, b) => a.name.localeCompare(b.name));
   };
 
@@ -162,7 +133,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       }
   }, [availableParents, formData.parentId, isEditing]);
 
-  // --- Auto Generate Username Logic ---
   const generateAutoUsername = (name: string, role: string, code?: string) => {
     if (role === 'DSA' && code) {
         return code.trim().toUpperCase();
@@ -195,60 +165,38 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
      return 'Người quản lý trực tiếp';
   }, [formData.role]);
 
-  // --- ENHANCED FILTER LOGIC (USING SCOPED USERS) ---
   const filteredUsers = useMemo(() => {
       const term = searchTerm.toLowerCase();
       const managerTerm = filterManager.toLowerCase();
-
-      // Use scopedUsers here so the table only shows allowed records
       return scopedUsers.filter(u => {
-        // 1. Text Search (Name, Username, Code)
         const matchesText = u.name.toLowerCase().includes(term) || 
                             u.username.toLowerCase().includes(term) ||
                             (u.dsaCode && u.dsaCode.toLowerCase().includes(term));
-        
-        // 2. Role Filter
         const matchesRole = filterRole === 'ALL' || u.role === filterRole;
-
-        // 3. Manager Filter (Parent Name Search)
         let matchesManager = true;
         if (managerTerm) {
-            const manager = users.find(parent => parent.id === u.parentId); // lookup in full list for parent name is safe
+            const manager = users.find(parent => parent.id === u.parentId); 
             matchesManager = manager ? manager.name.toLowerCase().includes(managerTerm) : false;
         }
-
         return matchesText && matchesRole && matchesManager;
       });
   }, [scopedUsers, users, searchTerm, filterRole, filterManager]);
 
-  // --- Handlers ---
-
-  // Check if targetUser is a descendant (subordinate) of currentUser
   const isDescendant = (targetUser: User): boolean => {
-      // Prevent deleting self
       if (targetUser.id === currentUser.id) return false;
-
-      // Check if visible in scopedUsers (which already implies it's a descendant or self)
-      // And ensure it's not self
       return scopedUsers.some(u => u.id === targetUser.id);
   };
 
-  // Permissions Check for Deletion
   const canDeleteUser = (targetUser: User) => {
       if (currentUser.role === 'ADMIN') {
-          // Admin can delete anyone except themselves
           return targetUser.id !== currentUser.id;
       }
-
-      // For SM, DSS, RSM: Can only delete descendants
       if (['RSM', 'SM', 'DSS'].includes(currentUser.role)) {
           return isDescendant(targetUser);
       }
-
       return false;
   };
 
-  // Resize Handlers
   const handleResizeStart = (e: React.MouseEvent, colKey: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -266,7 +214,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     if (!resizingRef.current) return;
     const { startX, startWidth, colKey } = resizingRef.current;
     const diff = e.pageX - startX;
-    const newWidth = Math.max(50, startWidth + diff); // Minimum width 50px
+    const newWidth = Math.max(50, startWidth + diff); 
     
     setColWidths(prev => ({
         ...prev,
@@ -281,7 +229,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     document.body.style.cursor = 'default';
   };
 
-  // Helper to remove undefined fields which cause Firebase errors
   const cleanUser = (user: any): User => {
     const cleaned: any = {};
     Object.keys(user).forEach(key => {
@@ -301,8 +248,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             img.src = e.target?.result as string;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // Calculate new size (Max width 800px)
-                const MAX_WIDTH = 800;
+                // Aggressive compression logic
+                const MAX_WIDTH = 400; // Reduced from 800px to 400px
                 let width = img.width;
                 let height = img.height;
 
@@ -315,22 +262,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
-                    // Fill white background to handle transparency
                     ctx.fillStyle = '#FFFFFF';
                     ctx.fillRect(0, 0, width, height);
-
                     ctx.drawImage(img, 0, 0, width, height);
-                    // Export to JPEG at 0.7 quality to keep size low
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    // Quality 0.5 for high compression
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
                     resolve(dataUrl);
                 } else {
                     reject(new Error("Canvas context failed"));
                 }
             };
-            // FIX: Reject with Error object, NOT Event
             img.onerror = () => reject(new Error("Image loading failed"));
         };
-        // FIX: Reject with Error object, NOT Event
         reader.onerror = () => reject(new Error("File reading failed"));
     });
   };
@@ -362,16 +305,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const handleSave = () => {
-    // Basic validation
     if (!formData.name) {
         alert("Vui lòng nhập Họ tên");
         return;
     }
 
     let finalUsername = formData.username;
-
-    // RULE: If Role is DSA and Code exists, enforce Username = DSA Code
-    // Tự động cập nhật user là mã code nếu trường hợp chưa được cập nhật hoặc cố tình nhập sai
     if (formData.role === 'DSA' && formData.dsaCode) {
         finalUsername = formData.dsaCode.trim().toUpperCase();
     } else if (!finalUsername) {
@@ -379,17 +318,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
         return;
     }
 
-    // Check for duplicate username (skip check if editing self and username matches)
     const existingUser = users.find(u => u.username === finalUsername);
     if (existingUser && (!isEditing || existingUser.id !== formData.id)) {
         alert(`Tên đăng nhập '${finalUsername}' đã tồn tại!`);
         return;
     }
 
-    // Prepare Payload
     const userPayload: any = {
         ...formData,
-        username: finalUsername, // Apply forced username
+        username: finalUsername, 
         role: formData.role || 'DSA',
     };
 
@@ -397,7 +334,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
         onUpdateUser(cleanUser(userPayload));
         resetForm();
     } else {
-        // Fix for 100+ concurrent users: Use current timestamp + random string to avoid ID collisions
         userPayload.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
         onAddUser(cleanUser(userPayload));
         resetForm();
@@ -408,7 +344,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '', phoneNumber: '' });
       setAvatarPreview(null);
       setIsEditing(false);
-      setAutoGenUsername(true); // Enable auto-gen for new users
+      setAutoGenUsername(true); 
       setShowForm(true);
   };
 
@@ -416,7 +352,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     setFormData({ ...user });
     setAvatarPreview(user.avatar || null);
     setIsEditing(true);
-    setAutoGenUsername(false); // Disable auto-gen for edits to prevent accidental overwrites
+    setAutoGenUsername(false); 
     setShowForm(true);
   };
 
@@ -426,8 +362,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     setIsEditing(false);
     setShowForm(false);
   };
-
-  // --- CONFIRMATION HANDLERS ---
 
   const initiateSingleDelete = (user: User) => {
       setDeleteConfirm({
@@ -440,7 +374,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const initiateBulkDelete = () => {
-      // Filter out IDs that the current user CANNOT delete based on hierarchy
       const allowedIds = Array.from(selectedIds).filter(id => {
           const target = users.find(u => u.id === id);
           return target && canDeleteUser(target);
@@ -482,8 +415,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
       setDeleteConfirm(null);
   };
 
-  // --- BULK ACTIONS ---
-
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredUsers.length) {
       setSelectedIds(new Set());
@@ -508,10 +439,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
        alert("Vui lòng chọn người quản lý mới!");
        return;
      }
-     // Check if user has permission to update these users (similar to delete)
      const allowedIds = Array.from(selectedIds).filter(id => {
         const target = users.find(u => u.id === id);
-        return target && canDeleteUser(target); // Reusing logic: if you can delete (manage), you can reassign
+        return target && canDeleteUser(target); 
      });
 
      if (allowedIds.length === 0) {
@@ -530,8 +460,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
      setShowBulkAction(false);
      setBulkManagerId('');
   };
-
-  // --- SMART IMPORT LOGIC ---
 
   const downloadTemplate = () => {
     const headers = "Username (Bat buoc),Ho Va Ten (Bat buoc),Chuc Vu (DSA/DSS/SM),Ma Code (DSA Code),SDT (So Dien Thoai),Username Quan Ly";
@@ -580,8 +508,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
 
           const role = ['DSA', 'DSS', 'SM', 'RSM', 'ADMIN'].includes(roleRaw) ? roleRaw as any : 'DSA';
 
-          // Force Username = DSA Code if role is DSA and Code exists
-          // Tự động cập nhật user là mã code trong quản lý nhân sự
           if (role === 'DSA' && dsaCode) {
               username = dsaCode.trim().toUpperCase();
           }
@@ -590,31 +516,27 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
              const existingUser = userMap.get(username.toLowerCase());
              
              if (existingUser) {
-                // Update Logic: Merge new data, preserve old if new is missing, avoid undefined
                 const updatedFields: any = { name, role };
                 if (dsaCode) updatedFields.dsaCode = dsaCode;
                 if (phone) updatedFields.phoneNumber = phone;
                 
                 const userObj = { ...existingUser, ...updatedFields };
-                // Also ensure username matches updated DSA code if changed
                 if (role === 'DSA' && dsaCode) {
                     userObj.username = dsaCode.trim().toUpperCase();
                 }
 
                 usersToUpdate.push(cleanUser(userObj));
              } else {
-                // New User Logic: Create object without undefined keys
                 const userObj: any = {
-                    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9), // Use more robust random ID
+                    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9), 
                     username, 
                     name, 
                     role
                 };
                 if (dsaCode) userObj.dsaCode = dsaCode;
                 if (phone) userObj.phoneNumber = phone;
-                // Note: parentId is handled later via queue
 
-                newUsers.push(userObj); // Don't clean yet, need ref for parent resolution
+                newUsers.push(userObj); 
                 userMap.set(username.toLowerCase(), userObj);
              }
 
@@ -623,7 +545,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                  if (refUser) {
                      parentResolutionQueue.push({ userRef: refUser, managerUsername });
                  } else {
-                     // For existing user, we need to update their parentId if provided
                      const existingUpdate = usersToUpdate.find(u => u.username.toLowerCase() === username.toLowerCase());
                      if (existingUpdate) {
                          parentResolutionQueue.push({ userRef: existingUpdate, managerUsername });
@@ -636,13 +557,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
         }
       }
 
-      // Resolve Parents
       parentResolutionQueue.forEach(({ userRef, managerUsername }) => {
           const manager = userMap.get(managerUsername.toLowerCase());
           if (manager) userRef.parentId = manager.id;
       });
       
-      // Final clean for new users
       const cleanNewUsers = newUsers.map(u => cleanUser(u));
 
       if (cleanNewUsers.length > 0) onAddUser(cleanNewUsers);
@@ -676,11 +595,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const allManagers = useMemo(() => {
-     // Use scopedUsers here too to prevent assigning to managers outside view
      return scopedUsers.filter(u => ['DSS', 'SM', 'RSM'].includes(u.role));
   }, [scopedUsers]);
 
-  // Table Header Cell Component with Resizer
   const ResizableHeader = ({ colKey, label, children }: { colKey: string, label?: string, children?: React.ReactNode }) => (
     <th 
         className="p-4 border-b border-emerald-200 dark:border-emerald-800 relative group select-none bg-emerald-100 dark:bg-emerald-900/50 text-emerald-900 dark:text-emerald-300 font-bold uppercase text-xs tracking-wider"
@@ -698,7 +615,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-t-4 border-emerald-600 p-6 max-w-7xl mx-auto mt-6 animate-in fade-in slide-in-from-bottom-4 transition-colors duration-300 relative">
-      {/* HEADER & MAIN ACTIONS */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-emerald-100 dark:border-emerald-900 gap-4">
          <div className="flex items-center space-x-3 w-full md:w-auto">
              <div className="bg-emerald-100 dark:bg-emerald-900/50 p-2 rounded-lg text-emerald-700 dark:text-emerald-400">
@@ -711,7 +627,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
          </div>
          
          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-            {/* Import Button */}
              <button 
                 onClick={() => setShowImport(true)}
                 className="p-2 text-emerald-700 dark:text-emerald-400 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
@@ -720,7 +635,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                 <FileUp size={20} />
             </button>
 
-            {/* Add Button */}
             <button 
                 onClick={openAddForm}
                 className="flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-bold text-sm shadow-md hover:from-emerald-700 hover:to-teal-700 transition-all transform hover:-translate-y-0.5"
@@ -732,13 +646,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
          </div>
       </div>
 
-      {/* --- ENHANCED FILTER BAR --- */}
       <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-lg p-3 mb-4 flex flex-col md:flex-row gap-3 items-center">
          <div className="flex items-center text-sm font-bold text-gray-500 dark:text-gray-400 mr-2 flex-shrink-0">
              <Filter size={16} className="mr-1"/> Bộ lọc:
          </div>
          
-         {/* Search Text */}
          <div className="relative flex-1 w-full md:max-w-xs">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
             <input 
@@ -750,7 +662,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             />
          </div>
 
-         {/* Filter Role */}
          <div className="relative w-full md:w-40">
             <select 
                 value={filterRole}
@@ -767,7 +678,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             <Briefcase size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
          </div>
 
-         {/* Filter Manager */}
          <div className="relative w-full md:max-w-xs">
             <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
             <input 
@@ -789,14 +699,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
          )}
       </div>
 
-      {/* TOOLBAR: FILTERS & BULK ACTIONS */}
       <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
             <div className="flex items-center gap-2">
                  <span className="text-sm font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-800">
                     Kết quả: {filteredUsers.length}
                 </span>
 
-                {/* Column Settings */}
                 <div className="relative">
                     <button onClick={() => setShowColumnSettings(!showColumnSettings)} className="p-1.5 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-800 rounded text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30" title="Cài đặt cột">
                         <Settings size={16} />
@@ -820,7 +728,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                 </div>
             </div>
 
-            {/* Bulk Action Bar */}
             {selectedIds.size > 0 && (
                 <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-lg flex items-center shadow-sm animate-in fade-in slide-in-from-right-2">
                     <CheckCircle size={16} className="mr-2 text-emerald-600 dark:text-emerald-400"/>
@@ -856,7 +763,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             )}
       </div>
 
-      {/* FULL WIDTH TABLE */}
       <div className="bg-white dark:bg-gray-800 border border-emerald-100 dark:border-emerald-900 rounded-xl shadow-sm overflow-hidden flex flex-col h-[65vh]">
             <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1 relative">
             <table className="text-sm text-left relative table-fixed" style={{ width: 'max-content' }}>
@@ -956,7 +862,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
             </div>
       </div>
 
-      {/* --- CONFIRMATION MODAL --- */}
       {deleteConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border-2 border-red-100 dark:border-red-900">
@@ -992,7 +897,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
           </div>
       )}
 
-      {/* --- MODAL: ADD / EDIT FORM --- */}
       {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-100 dark:border-emerald-900 max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -1005,7 +909,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                    </div>
 
                    <div className="p-6 space-y-5">
-                       {/* Form Fields - White Backgrounds, Colored Borders */}
                        <div className="flex flex-col items-center mb-4">
                           <div className="relative group cursor-pointer mb-2">
                              <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" id="avatarUpload" />
@@ -1138,7 +1041,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
           </div>
       )}
 
-      {/* --- MODAL: IMPORT EXCEL --- */}
       {showImport && (
            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-emerald-100 dark:border-emerald-900">
