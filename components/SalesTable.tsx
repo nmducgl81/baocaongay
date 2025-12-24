@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SalesRecord, User } from '../types';
-import { X, Pencil, Check, Search, Layout, ChevronDown, Trash2, AlertTriangle, Clock, ArrowUp, ArrowDown, Maximize2, Minimize2, ZoomIn, ZoomOut, Users, Map, User as UserIcon, ChevronRight, RotateCcw, CalendarOff, Layers, Calendar } from 'lucide-react';
+import { X, Pencil, Search, Layout, ChevronDown, Trash2, AlertTriangle, ArrowUp, ArrowDown, Users, Map, User as UserIcon, ChevronRight, RotateCcw, CalendarOff } from 'lucide-react';
 
 interface SalesTableProps {
   data: SalesRecord[];
@@ -10,17 +10,12 @@ interface SalesTableProps {
   onDelete?: (recordId: string) => void; // Optional delete handler
   currentUser: User;
   statusFilter: string; // New prop to control visibility of "Chưa báo cáo"
-  // Props for scaling
-  uiScale?: number;
-  onZoomIn?: () => void;
-  onZoomOut?: () => void;
 }
 
 type TableScope = 'dsa' | 'dss' | 'sm';
 
 export const SalesTable: React.FC<SalesTableProps> = ({ 
-  data, onRowClick, onEdit, onApprove, onDelete, currentUser, statusFilter,
-  uiScale = 100, onZoomIn, onZoomOut
+  data, onRowClick, onEdit, onApprove, onDelete, currentUser, statusFilter
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showColumnSettings, setShowColumnSettings] = useState(false);
@@ -30,9 +25,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   
   // Drill-down State
   const [internalFilter, setInternalFilter] = useState<{ smName?: string; dss?: string } | null>(null);
-
-  // Full Screen State
-  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Sort State: 'desc' (Highest Volume first by default for aggregated view)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -45,43 +37,41 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const showToolbar = currentUser.role !== 'DSA';
   const canConfigureColumns = currentUser.role === 'ADMIN' || ['RSM', 'SM', 'DSS'].includes(currentUser.role);
 
-  // Column Visibility State
-  const [visibleColumns, setVisibleColumns] = useState({
-    id: false, 
-    dss: true,
-    sm: true,
-    approval: true,
-    directApp: true,
-    directLoan: true,
-    directAppCRC: true,
-    directLoanCRC: true,
-    directVolume: true,
-    directBanca: true,
-    directRol: true,
-    directAppFEOL: true,
-    directLoanFEOL: true,
-    directVolumeFEOL: true,
-    ctv: true,
-    newCtv: true,
-    flyers: true,
-    dlk: true,
-    newDlk: true,
-    calls: true,
-    adSpend: true
+  // Column Visibility State - OPTIMIZED FOR MOBILE
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    // Check if screen width is less than 768px (Mobile)
+    const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+    
+    return {
+        id: false, 
+        dss: !isMobile, // Hide DSS on mobile
+        sm: !isMobile,  // Hide SM on mobile
+        approval: true,
+        directApp: true,
+        directLoan: true,
+        directVolume: true,
+        
+        // Hide detailed metrics on mobile by default to prevent horizontal bloat
+        directAppCRC: !isMobile,
+        directLoanCRC: !isMobile,
+        directBanca: !isMobile,
+        directRol: !isMobile,
+        directAppFEOL: !isMobile,
+        directLoanFEOL: !isMobile,
+        directVolumeFEOL: !isMobile,
+        ctv: !isMobile,
+        newCtv: !isMobile,
+        flyers: !isMobile,
+        dlk: !isMobile,
+        newDlk: !isMobile,
+        calls: !isMobile,
+        adSpend: !isMobile
+    };
   });
 
   const toggleColumn = (key: keyof typeof visibleColumns) => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
   const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
   
-  // Handle Esc key to exit full screen
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') setIsFullScreen(false);
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, []);
-
   const canDeleteSummary = ['ADMIN', 'RSM'].includes(currentUser.role);
 
   // Handle Tab Switch (Reset Drill-down)
@@ -243,10 +233,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const showActionColumn = isMissingView || canDeleteSummary;
 
   return (
-    <div className={isFullScreen 
-        ? "fixed inset-0 z-[100] bg-white dark:bg-gray-900 flex flex-col p-2 md:p-4 animate-in fade-in zoom-in-95 duration-200" 
-        : "flex flex-col space-y-4 h-full"
-    }>
+    <div className="flex flex-col space-y-4 h-full">
       {/* SCOPE TABS & BREADCRUMB */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
           <div className="flex flex-col md:flex-row md:items-center gap-2">
@@ -316,15 +303,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             </div>
             
             <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
-                {/* Zoom Controls */}
-                {(isFullScreen || window.innerWidth < 768) && onZoomIn && onZoomOut && (
-                    <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                        <button onClick={onZoomOut} disabled={uiScale <= 60} className="p-2 text-gray-500 hover:text-emerald-600 disabled:opacity-30"><ZoomOut size={16}/></button>
-                        <span className="text-xs font-bold w-8 text-center">{uiScale}%</span>
-                        <button onClick={onZoomIn} disabled={uiScale >= 100} className="p-2 text-gray-500 hover:text-emerald-600 disabled:opacity-30"><ZoomIn size={16}/></button>
-                    </div>
-                )}
-
                 {/* Sort Button (Hidden in Not Reported view as we sort by Date) */}
                 {!isMissingView && (
                     <button 
@@ -354,36 +332,36 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                         {canShowSM && <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.sm} onChange={() => toggleColumn('sm')} className="mr-3"/><span>SM</span></label>}
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.approval} onChange={() => toggleColumn('approval')} className="mr-3"/><span>Trạng thái duyệt</span></label>
                                     </div>
+                                    <div className="mb-3">
+                                        <div className="text-xs font-bold text-blue-600 uppercase mb-2 px-2">Sản phẩm</div>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directApp} onChange={() => toggleColumn('directApp')} className="mr-3"/><span>App (Tiền mặt)</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directLoan} onChange={() => toggleColumn('directLoan')} className="mr-3"/><span>Loan (Tiền mặt)</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directVolume} onChange={() => toggleColumn('directVolume')} className="mr-3"/><span>Volume</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directBanca} onChange={() => toggleColumn('directBanca')} className="mr-3"/><span>Banca</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directAppCRC} onChange={() => toggleColumn('directAppCRC')} className="mr-3"/><span>App CRC (Thẻ)</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directLoanCRC} onChange={() => toggleColumn('directLoanCRC')} className="mr-3"/><span>Loan CRC</span></label>
+                                    </div>
                                 </div>
                             </div>
                         </>
                     )}
                 </div>
                 )}
-                
-                {/* Full Screen Toggle */}
-                <button 
-                    onClick={() => setIsFullScreen(!isFullScreen)} 
-                    className={`p-2.5 rounded-lg border transition-all shadow-sm ${isFullScreen ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200'}`}
-                    title={isFullScreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
-                >
-                    {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                </button>
             </div>
         </div>
       )}
 
       {/* Use 100dvh for better mobile experience (dynamic viewport height) */}
-      <div className={`w-full overflow-hidden border border-gray-300 dark:border-gray-700 rounded-lg shadow-md bg-white dark:bg-gray-800 flex flex-col flex-1 ${isFullScreen ? 'h-full' : 'h-[calc(100dvh-140px)] md:h-[65vh]'}`}>
+      <div className="w-full overflow-hidden border border-gray-300 dark:border-gray-700 rounded-lg shadow-md bg-white dark:bg-gray-800 flex flex-col flex-1 h-[calc(100dvh-140px)] md:h-[65vh]">
         <div className="overflow-x-auto overflow-y-auto flex-1 relative custom-scrollbar">
           <table className="min-w-max border-collapse w-full text-xs md:text-sm">
             <thead className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 sticky top-0 z-20">
-              <tr className="uppercase bg-emerald-500 text-white font-bold text-[10px] md:text-xs">
-                <th className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 sticky left-0 z-30 bg-emerald-700 min-w-[35px]">TT</th>
+              <tr className="uppercase bg-emerald-500 text-white font-bold text-xs">
+                <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-0 z-30 bg-emerald-700 min-w-[35px] text-center">TT</th>
                 {visibleColumns.id && <th className="border border-gray-300 p-2 min-w-[60px] bg-gray-600">ID</th>}
                 
                 {/* Dynamic Name Column based on Scope */}
-                <th className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 sticky left-[35px] z-30 bg-emerald-700 min-w-[100px] text-left">
+                <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[35px] z-30 bg-emerald-700 min-w-[120px] text-left shadow-lg">
                     {isMissingView ? 'Nhân sự (DSA)' : (tableScope === 'dsa' ? 'Nhân sự (DSA)' : tableScope === 'dss' ? 'Team (DSS)' : 'Khu Vực (SM)')}
                 </th>
 
@@ -404,18 +382,18 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 {/* METRICS - Only show if NOT in Missing View */}
                 {!isMissingView && (
                     <>
-                        {visibleColumns.directApp && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[40px]">App</th>}
-                        {visibleColumns.directLoan && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[40px]">Loan</th>}
-                        {visibleColumns.directAppCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[40px]">App CRC</th>}
-                        {visibleColumns.directLoanCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[40px]">Loan CRC</th>}
-                        {visibleColumns.directVolume && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[80px]">Volume</th>}
-                        {visibleColumns.directBanca && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[80px]">Banca</th>}
+                        {visibleColumns.directApp && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">App</th>}
+                        {visibleColumns.directLoan && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">Loan</th>}
+                        {visibleColumns.directAppCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">App CRC</th>}
+                        {visibleColumns.directLoanCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">Loan CRC</th>}
+                        {visibleColumns.directVolume && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Volume</th>}
+                        {visibleColumns.directBanca && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Banca</th>}
                         {visibleColumns.directRol && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">Rol (%)</th>}
-                        {visibleColumns.directAppFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[40px]">App FEOL</th>}
-                        {visibleColumns.directLoanFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[40px]">Loan FEOL</th>}
-                        {visibleColumns.directVolumeFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[80px]">Vol FEOL</th>}
-                        {visibleColumns.ctv && <th className="border border-gray-300 p-2 bg-orange-50 text-orange-900 min-w-[40px]">CTV</th>}
-                        {visibleColumns.newCtv && <th className="border border-gray-300 p-2 bg-orange-50 text-orange-900 min-w-[40px]">CTV Mới</th>}
+                        {visibleColumns.directAppFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[50px]">App FEOL</th>}
+                        {visibleColumns.directLoanFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[50px]">Loan FEOL</th>}
+                        {visibleColumns.directVolumeFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[90px]">Vol FEOL</th>}
+                        {visibleColumns.ctv && <th className="border border-gray-300 p-2 bg-orange-50 text-orange-900 min-w-[50px]">CTV</th>}
+                        {visibleColumns.newCtv && <th className="border border-gray-300 p-2 bg-orange-50 text-orange-900 min-w-[50px]">CTV Mới</th>}
                         {visibleColumns.flyers && <th className="border border-gray-300 p-2">Tờ rơi</th>}
                         {visibleColumns.dlk && <th className="border border-gray-300 p-2">ĐLK</th>}
                         {visibleColumns.newDlk && <th className="border border-gray-300 p-2">ĐLK Mới</th>}
@@ -442,20 +420,20 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       const missingCount = (row as any).missingCount || 0;
 
                       return (
-                        <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-[11px] md:text-sm font-medium bg-red-50/30 dark:bg-red-900/10">
-                            <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center sticky left-0 z-10 font-medium bg-white dark:bg-gray-800 text-red-600">
+                        <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs md:text-sm font-medium bg-red-50/30 dark:bg-red-900/10">
+                            <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-10 font-medium bg-white dark:bg-gray-800 text-red-600">
                                 {index + 1}
                             </td>
-                            {visibleColumns.id && <td className="border border-gray-300 p-1 md:p-2 text-center font-mono text-[9px] text-gray-400">{row.id}</td>}
+                            {visibleColumns.id && <td className="border border-gray-300 p-2 text-center font-mono text-[9px] text-gray-400">{row.id}</td>}
                             
-                            <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 sticky left-[35px] z-10 uppercase whitespace-nowrap font-bold bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400">
+                            <td className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[35px] z-10 uppercase whitespace-nowrap font-bold bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400 shadow-lg">
                                 <span className="hidden sm:inline">{row.name}</span>
                                 <span className="sm:hidden">{lastName}</span>
                                 <span className="ml-2 text-xs text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">Thiếu: {missingCount}</span>
                             </td>
 
-                            {canShowDSS && visibleColumns.dss && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 whitespace-nowrap text-[10px] md:text-xs font-medium text-purple-700">{row.dss}</td>}
-                            {canShowSM && visibleColumns.sm && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center text-[10px] md:text-xs font-medium text-blue-700">{row.smName}</td>}
+                            {canShowDSS && visibleColumns.dss && <td className="border border-gray-300 dark:border-gray-600 p-2 whitespace-nowrap text-xs font-medium text-purple-700">{row.dss}</td>}
+                            {canShowSM && visibleColumns.sm && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-xs font-medium text-blue-700">{row.smName}</td>}
 
                             {showActionColumn && (
                                 <td className="border border-gray-300 dark:border-gray-600 p-2">
@@ -467,7 +445,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                                 <button 
                                                     key={date}
                                                     onClick={() => onEdit({ ...row, reportDate: date })}
-                                                    className="px-2 py-1 text-[10px] md:text-xs font-bold bg-white border border-red-200 text-red-600 rounded hover:bg-red-500 hover:text-white transition-colors shadow-sm flex items-center"
+                                                    className="px-2 py-1 text-xs font-bold bg-white border border-red-200 text-red-600 rounded hover:bg-red-500 hover:text-white transition-colors shadow-sm flex items-center"
                                                     title={`Nhấn để báo cáo ngày ${date}`}
                                                 >
                                                     {shortDate} <Pencil size={10} className="ml-1 opacity-50"/>
@@ -483,32 +461,32 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
                   // Handle Normal View
                   return (
-                    <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-[11px] md:text-sm font-medium">
-                      <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center sticky left-0 z-10 font-medium bg-white dark:bg-gray-800">
+                    <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs md:text-sm font-medium">
+                      <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-10 font-medium bg-white dark:bg-gray-800">
                           {index + 1}
                       </td>
-                      {visibleColumns.id && <td className="border border-gray-300 p-1 md:p-2 text-center font-mono text-[9px] text-gray-400">{row.id}</td>}
+                      {visibleColumns.id && <td className="border border-gray-300 p-2 text-center font-mono text-[9px] text-gray-400">{row.id}</td>}
                       
                       {/* Name Column (Clickable to Drill Down or Detail) */}
                       <td 
-                        className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 sticky left-[35px] z-10 uppercase whitespace-nowrap font-bold cursor-pointer hover:text-blue-600 hover:underline bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400" 
+                        className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[35px] z-10 uppercase whitespace-nowrap font-bold cursor-pointer hover:text-blue-600 hover:underline bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400 shadow-lg" 
                         onClick={() => handleSummaryClick(row)}
                       >
                         <span className="hidden sm:inline">{row.name}</span>
                         <span className="sm:hidden">{lastName}</span>
-                        {(row as any)._childIds?.length > 0 && <span className="ml-2 text-[9px] text-gray-400 font-normal">({(row as any)._childIds.length})</span>}
+                        {(row as any)._childIds?.length > 0 && <span className="ml-2 text-[10px] text-gray-400 font-normal">({(row as any)._childIds.length})</span>}
                       </td>
                       
                       {/* Hierarchy Columns */}
-                      {tableScope === 'dsa' && canShowDSS && visibleColumns.dss && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 whitespace-nowrap text-[10px] md:text-xs font-medium text-purple-700">{row.dss}</td>}
-                      {tableScope === 'dsa' && canShowSM && visibleColumns.sm && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center text-[10px] md:text-xs font-medium text-blue-700">{row.smName}</td>}
+                      {tableScope === 'dsa' && canShowDSS && visibleColumns.dss && <td className="border border-gray-300 dark:border-gray-600 p-2 whitespace-nowrap text-xs font-medium text-purple-700">{row.dss}</td>}
+                      {tableScope === 'dsa' && canShowSM && visibleColumns.sm && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-xs font-medium text-blue-700">{row.smName}</td>}
                       
                       {/* Show SM column in DSS view for better context */}
-                      {tableScope === 'dss' && canShowSM && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center text-[10px] md:text-xs font-bold text-blue-700">{row.smName}</td>}
+                      {tableScope === 'dss' && canShowSM && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-xs font-bold text-blue-700">{row.smName}</td>}
 
                       {/* Action / Status Column - Hidden if showActionColumn is false */}
                       {showActionColumn && (
-                          <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center whitespace-nowrap">
+                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-center whitespace-nowrap">
                               {canDeleteSummary ? (
                                   <button 
                                     onClick={() => setDeleteConfirm({isOpen: true, ids: (row as any)._childIds, name: row.name})}
@@ -522,23 +500,23 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       )}
 
                       {/* Metrics */}
-                      {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center">{row.directApp}</td>}
-                      {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center text-red-600 font-medium">{row.directLoan}</td>}
-                      {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center bg-red-50/50">{row.directAppCRC || 0}</td>}
-                      {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center bg-red-50/50 text-red-700 font-bold">{row.directLoanCRC || 0}</td>}
-                      {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-right">{formatCurrency(row.directVolume)}</td>}
-                      {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-right text-emerald-600">{formatCurrency(row.directBanca)}</td>}
-                      {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center font-bold text-blue-600">{rolDisplay}</td>}
-                      {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center bg-purple-50/50">{row.directAppFEOL || 0}</td>}
-                      {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center bg-purple-50/50 font-bold">{row.directLoanFEOL || 0}</td>}
-                      {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-right bg-purple-50/50">{formatCurrency(row.directVolumeFEOL)}</td>}
-                      {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center">{row.ctv}</td>}
-                      {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center">{row.newCtv}</td>}
-                      {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center">{formatCurrency(row.flyers)}</td>}
-                      {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center">{row.dlk}</td>}
-                      {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center">{row.newDlk}</td>}
-                      {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-center">{row.callsMonth}</td>}
-                      {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-1 md:p-2 text-right">{formatCurrency(row.adSpend)}</td>}
+                      {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.directApp}</td>}
+                      {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-600 font-medium">{row.directLoan}</td>}
+                      {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50">{row.directAppCRC || 0}</td>}
+                      {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50 text-red-700 font-bold">{row.directLoanCRC || 0}</td>}
+                      {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{formatCurrency(row.directVolume)}</td>}
+                      {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-600">{formatCurrency(row.directBanca)}</td>}
+                      {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center font-bold text-blue-600">{rolDisplay}</td>}
+                      {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50">{row.directAppFEOL || 0}</td>}
+                      {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50 font-bold">{row.directLoanFEOL || 0}</td>}
+                      {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right bg-purple-50/50">{formatCurrency(row.directVolumeFEOL)}</td>}
+                      {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.ctv}</td>}
+                      {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.newCtv}</td>}
+                      {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{formatCurrency(row.flyers)}</td>}
+                      {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.dlk}</td>}
+                      {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.newDlk}</td>}
+                      {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.callsMonth}</td>}
+                      {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{formatCurrency(row.adSpend)}</td>}
                     </tr>
                   );
                 })

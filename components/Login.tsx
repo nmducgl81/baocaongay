@@ -1,19 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { User, Lock, LogIn, Key, CheckCircle } from 'lucide-react';
-import { authService } from '../services/authService';
-import { User as UserType } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
-interface LoginProps {
-  onLogin: (user: UserType) => void;
-  users: UserType[]; // Receive the dynamic list of users
-}
-
-export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
+export const Login: React.FC = () => {
+  const { login, users } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
 
   // Find user avatar if username matches
   const matchedUser = useMemo(() => {
@@ -26,14 +20,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
     setLoading(true);
 
     try {
-      // Pass the current users list to the login service
-      const user = await authService.login(username, password, users);
-      if (user) {
-        if (rememberMe) {
-            localStorage.setItem('currentUser', JSON.stringify(user));
-        }
-        onLogin(user);
-      } else {
+      const success = await login(username, password);
+      if (!success) {
         setError('Tên đăng nhập hoặc mật khẩu không đúng');
       }
     } catch (err) {
@@ -112,20 +100,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-            </div>
-
-            <div className="flex items-center">
-                <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded cursor-pointer"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 font-medium cursor-pointer">
-                    Ghi nhớ đăng nhập
-                </label>
             </div>
 
             {error && (
