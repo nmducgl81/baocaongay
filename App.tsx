@@ -74,6 +74,12 @@ const MOTIVATIONAL_QUOTES = [
   "🏆 Người chiến thắng không bao giờ bỏ cuộc, người bỏ cuộc không bao giờ chiến thắng."
 ];
 
+// Cache Configuration to save Firebase Quota
+const CACHE_CONFIG = {
+    USER_TTL: 24 * 60 * 60 * 1000, // Users: Cache for 24 hours
+    SALES_TTL: 5 * 60 * 1000,      // Sales: Cache for 5 minutes (prevent spam refresh)
+};
+
 const App: React.FC = () => {
   // Helper to format date as YYYY-MM-DD in Local Time
   const formatDate = (date: Date) => {
@@ -205,10 +211,29 @@ const App: React.FC = () => {
       return newObj;
   };
 
-  // --- DATA FETCHING (OPTIMIZED) ---
+  // --- DATA FETCHING (HIGHLY OPTIMIZED) ---
   const fetchData = useCallback(async (force = false) => {
     // Prevent fetching if we are offline and not forcing a retry
-    if (!force && !db) return;
+    if (!db) return;
+
+    // --- SMART CACHING LOGIC ---
+    const now = Date.now();
+    const lastUserFetch = Number(localStorage.getItem('ts_users') || 0);
+    const lastSalesFetch = Number(localStorage.getItem('ts_sales') || 0);
+
+    // 1. USERS STRATEGY
+    // Only fetch users if cache expired (> 24h) or force or empty
+    const shouldFetchUsers = force || (now - lastUserFetch > CACHE_CONFIG.USER_TTL) || users.length <= 5;
+    
+    // 2. SALES STRATEGY
+    // Only fetch sales if cache expired (> 5m) or force
+    const shouldFetchSales = force || (now - lastSalesFetch > CACHE_CONFIG.SALES_TTL);
+
+    if (!shouldFetchUsers && !shouldFetchSales) {
+        console.log("🚀 [Cache] Using local data to save Firebase Quota.");
+        setIsOnline(true); 
+        return;
+    }
 
     setIsLoadingData(true);
     setPermissionError(false);
@@ -219,7 +244,6 @@ const App: React.FC = () => {
             console.log("⚠️ Offline mode activated:", authResult.error);
             setIsOnline(false);
             setFirebaseError(authResult.error || 'unknown_error');
-            // If data empty, load mock
             if (allData.length === 0) setAllData(generateMockData());
             setIsLoadingData(false);
             return;
@@ -228,37 +252,55 @@ const App: React.FC = () => {
         setIsOnline(true);
         setFirebaseError(null);
 
-        // 1. Fetch Users (One-time fetch, NOT real-time)
-        const usersSnapshot = await getDocs(collection(db!, "users"));
-        if (!usersSnapshot.empty) {
-            const remoteUsers = usersSnapshot.docs.map(doc => doc.data() as User);
-            setUsers(remoteUsers);
-            localStorage.setItem('app_users', JSON.stringify(remoteUsers));
-            
-            // Sync Current User details
-            if (currentUser) {
-               const updatedSelf = remoteUsers.find(u => u.id === currentUser.id);
-               if (updatedSelf) setCurrentUser(updatedSelf);
+        // FETCH USERS
+        if (shouldFetchUsers) {
+            console.log("☁️ Fetching Users from Firebase...");
+            const usersSnapshot = await getDocs(collection(db!, "users"));
+            if (!usersSnapshot.empty) {
+                const remoteUsers = usersSnapshot.docs.map(doc => doc.data() as User);
+                setUsers(remoteUsers);
+                localStorage.setItem('app_users', JSON.stringify(remoteUsers));
+                localStorage.setItem('ts_users', now.toString());
+                
+                // Sync Current User details
+                if (currentUser) {
+                   const updatedSelf = remoteUsers.find(u => u.id === currentUser.id);
+                   if (updatedSelf) setCurrentUser(updatedSelf);
+                }
             }
         }
 
-        // 2. Fetch Sales Records (One-time fetch, optimized for 30 days)
-        // Optimization: Default to 30 days to save Reads
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const dateString = thirtyDaysAgo.toISOString().split('T')[0];
+        // FETCH SALES RECORDS (Optimized Merge Strategy)
+        if (shouldFetchSales) {
+            console.log("☁️ Fetching Sales Records from Firebase...");
+            // Optimization: Only fetch based on current View Date Range to save reads
+            // We use the current startDate and endDate from state
+            
+            const q = query(
+                collection(db!, "sales_records"), 
+                where("reportDate", ">=", startDate),
+                where("reportDate", "<=", endDate)
+            );
+            
+            const salesSnapshot = await getDocs(q);
+            const remoteSales = salesSnapshot.docs.map(doc => doc.data() as SalesRecord);
+            
+            // MERGE STRATEGY: 
+            // 1. Keep records that are OUTSIDE the fetched range (History)
+            // 2. Replace records INSIDE the fetched range with new data from Firebase
+            setAllData(prevData => {
+                // Keep records strictly BEFORE start date OR AFTER end date
+                const keptRecords = prevData.filter(r => r.reportDate < startDate || r.reportDate > endDate);
+                
+                // Combine with new records
+                const merged = [...keptRecords, ...remoteSales];
+                localStorage.setItem('sales_records', JSON.stringify(merged));
+                return merged;
+            });
 
-        const q = query(
-            collection(db!, "sales_records"), 
-            where("reportDate", ">=", dateString)
-        );
-        
-        const salesSnapshot = await getDocs(q);
-        const remoteSales = salesSnapshot.docs.map(doc => doc.data() as SalesRecord);
-        
-        setAllData(remoteSales);
-        localStorage.setItem('sales_records', JSON.stringify(remoteSales));
-        setLastUpdated(new Date());
+            localStorage.setItem('ts_sales', now.toString());
+            setLastUpdated(new Date());
+        }
 
     } catch (error: any) {
         console.warn("Fetch Error:", error);
@@ -269,13 +311,13 @@ const App: React.FC = () => {
     } finally {
         setIsLoadingData(false);
     }
-  }, [currentUser]); // Dependency on currentUser mostly for syncing self
+  }, [currentUser, startDate, endDate, users.length]); // Dependencies
 
-  // Initial Load
+  // Initial Load - Fetch only when dates change or on mount
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, [startDate, endDate]); // Trigger fetch when date range changes (respected by TTL)
 
   useEffect(() => { localStorage.setItem('viewMode', viewMode); }, [viewMode]);
   useEffect(() => { localStorage.setItem('startDate', startDate); }, [startDate]);
@@ -300,12 +342,43 @@ const App: React.FC = () => {
     if (!currentUser) return [];
     const visibleDSAIds = authService.getVisibleDSAIds(currentUser, users);
     
-    // 1. Get Actual Records within selected Date Range
+    // Create a Map for fast Hierarchy Lookup from Current Users
+    const hierarchyMap = new Map<string, { dss: string, sm: string }>();
+    users.forEach(u => {
+        if (u.role === 'DSA' && u.dsaCode) {
+            let dss = '';
+            let sm = '';
+            const parent = users.find(p => p.id === u.parentId);
+            if (parent) {
+                if (parent.role === 'DSS') {
+                    dss = parent.name;
+                    const grandParent = users.find(gp => gp.id === parent.parentId);
+                    if (grandParent && grandParent.role === 'SM') sm = grandParent.name;
+                } else if (parent.role === 'SM') {
+                    sm = parent.name;
+                }
+            }
+            hierarchyMap.set(u.dsaCode, { dss, sm });
+        }
+    });
+
+    // 1. Get Actual Records within selected Date Range AND Sync Hierarchy
     let actualRecords = allData.filter(record => 
         visibleDSAIds.includes(record.dsaCode) && 
         record.reportDate >= startDate && 
         record.reportDate <= endDate
-    );
+    ).map(record => {
+        // SYNCHRONIZATION: Fix missing or outdated DSS/SM names using current user data
+        const currentHierarchy = hierarchyMap.get(record.dsaCode);
+        if (currentHierarchy) {
+            return {
+                ...record,
+                dss: currentHierarchy.dss || record.dss, // Use current, fallback to record if empty
+                smName: currentHierarchy.sm || record.smName
+            };
+        }
+        return record;
+    });
 
     // Apply secondary filters (SM/DSS) to actual records first
     if (smFilter !== 'all') actualRecords = actualRecords.filter(r => r.smName === smFilter);
@@ -341,29 +414,23 @@ const App: React.FC = () => {
 
         dateRange.forEach(date => {
             dsaUsersInScope.forEach(user => {
-                let matchesFilter = true;
-                if (smFilter !== 'all' || dssFilter !== 'all') {
-                    const parent = users.find(u => u.id === user.parentId);
-                    const grandParent = parent ? users.find(u => u.id === parent.parentId) : null;
-                    const smName = grandParent?.role === 'SM' ? grandParent.name : (parent?.role === 'SM' ? parent.name : '');
-                    const dssName = parent?.role === 'DSS' ? parent.name : '';
+                // Use hierarchy from map for consistency
+                const hier = hierarchyMap.get(user.dsaCode || '') || { dss: '', sm: '' };
+                const smName = hier.sm;
+                const dssName = hier.dss;
 
-                    if (smFilter !== 'all' && smName !== smFilter) matchesFilter = false;
-                    if (dssFilter !== 'all' && dssName !== dssFilter) matchesFilter = false;
-                }
+                let matchesFilter = true;
+                if (smFilter !== 'all' && smName !== smFilter) matchesFilter = false;
+                if (dssFilter !== 'all' && dssName !== dssFilter) matchesFilter = false;
 
                 if (matchesFilter) {
                     const key = `${user.dsaCode}_${date}`;
                     if (!existingMap.has(key)) {
-                        const parent = users.find(u => u.id === user.parentId);
-                        const grandParent = parent ? users.find(u => u.id === parent.parentId) : null;
-                        const smName = grandParent?.role === 'SM' ? grandParent.name : (parent?.role === 'SM' ? parent.name : '');
-
                         virtualRecords.push({
                             id: `virt-${user.id}-${date}`, 
                             dsaCode: user.dsaCode || '',
                             name: user.name,
-                            dss: parent?.role === 'DSS' ? parent.name : '',
+                            dss: dssName,
                             smName: smName,
                             reportDate: date,
                             status: 'Chưa báo cáo',
@@ -425,11 +492,45 @@ const App: React.FC = () => {
   const dateFilteredGlobalData = useMemo(() => {
     if (!currentUser) return [];
     const activeDsaCodes = new Set(users.filter(u => u.role === 'DSA' && u.dsaCode).map(u => u.dsaCode!));
-    let data = allData.filter(record => record.reportDate >= startDate && record.reportDate <= endDate && activeDsaCodes.has(record.dsaCode));
+    // Apply hierarchy sync to global data too for correct ranking
+    const hierarchyMap = new Map<string, { dss: string, sm: string }>();
+    users.forEach(u => {
+        if (u.role === 'DSA' && u.dsaCode) {
+            let dss = '';
+            let sm = '';
+            const parent = users.find(p => p.id === u.parentId);
+            if (parent) {
+                if (parent.role === 'DSS') { dss = parent.name; const gp = users.find(x => x.id === parent.parentId); if (gp && gp.role === 'SM') sm = gp.name; }
+                else if (parent.role === 'SM') { sm = parent.name; }
+            }
+            hierarchyMap.set(u.dsaCode, { dss, sm });
+        }
+    });
+
+    let data = allData.filter(record => record.reportDate >= startDate && record.reportDate <= endDate && activeDsaCodes.has(record.dsaCode))
+        .map(r => {
+            const h = hierarchyMap.get(r.dsaCode);
+            return h ? { ...r, dss: h.dss || r.dss, smName: h.sm || r.smName } : r;
+        });
+
     if (smFilter !== 'all') data = data.filter(record => record.smName === smFilter);
     if (dssFilter !== 'all') data = data.filter(record => record.dss === dssFilter);
     return data;
   }, [allData, currentUser, startDate, endDate, smFilter, dssFilter, users]);
+
+  // Pre-calculate Last Active Date for every user (Global)
+  // This helps "Not Reported" view to be fast
+  const lastActivityMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    allData.forEach(r => {
+        if (r.status === 'Đã báo cáo' && r.dsaCode) {
+            if (!map[r.dsaCode] || r.reportDate > map[r.dsaCode]) {
+                map[r.dsaCode] = r.reportDate;
+            }
+        }
+    });
+    return map;
+  }, [allData]);
 
   const pendingRecords = useMemo(() => { if (!currentUser || currentUser.role === 'DSA') return []; const visible = authService.getVisibleDSAIds(currentUser, users); return allData.filter(r => visible.includes(r.dsaCode) && r.approvalStatus === 'Pending'); }, [allData, currentUser, users]);
   
@@ -713,7 +814,15 @@ const App: React.FC = () => {
         ) : currentScreen === 'knowledge' ? (
             <KnowledgeBase currentUser={currentUser} onClose={() => setCurrentScreen('dashboard')} />
         ) : currentScreen === 'detail' && selectedDSA ? (
-          <DSADetail dsaCode={selectedDSA} data={allData} onBack={() => setCurrentScreen('dashboard')} />
+          <DSADetail 
+            dsaCode={selectedDSA} 
+            data={allData} 
+            onBack={() => setCurrentScreen('dashboard')} 
+            currentUser={currentUser}
+            onEdit={handleEditRecord}
+            onApprove={handleApproveRecord}
+            users={users}
+          />
         ) : (
           <>
             <div className="mb-6 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-xl p-4 text-white shadow-md relative overflow-hidden animate-in fade-in slide-in-from-top-4">

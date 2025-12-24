@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { SalesRecord } from '../types';
-import { ArrowLeft, TrendingUp, Phone, Users, CheckCircle, Info, X, BarChart2, PieChart } from 'lucide-react';
+import { SalesRecord, User } from '../types';
+import { ArrowLeft, TrendingUp, Phone, Users, CheckCircle, Info, X, BarChart2, PieChart, Pencil, Check } from 'lucide-react';
 
 interface DSADetailProps {
   dsaCode: string;
   data: SalesRecord[];
   onBack: () => void;
+  currentUser: User;
+  onEdit: (record: SalesRecord) => void;
+  onApprove: (record: SalesRecord, isApproved: boolean) => void;
+  users: User[];
 }
 
-export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) => {
+export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, currentUser, onEdit, onApprove, users }) => {
   const [showKpiInfo, setShowKpiInfo] = useState(false);
   
   // FILTER: Only show records that are 'Đã báo cáo'
@@ -27,18 +31,35 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
     return `${code.substring(0, 2)}***${code.substring(code.length - 3)}`;
   };
 
+  // --- HIERARCHY RESOLUTION LOGIC ---
+  // Find current user info to get latest hierarchy, fallback to record data
+  const dsaUser = users.find(u => u.dsaCode === dsaCode && u.role === 'DSA');
+  
+  let displayDSS = latest.dss;
+  let displaySM = latest.smName;
+
+  if (dsaUser && dsaUser.parentId) {
+      const parent = users.find(u => u.id === dsaUser.parentId);
+      if (parent) {
+          if (parent.role === 'DSS') {
+              displayDSS = parent.name;
+              const sm = users.find(u => u.id === parent.parentId);
+              if (sm) displaySM = sm.name;
+          } else if (parent.role === 'SM') {
+              displaySM = parent.name;
+              displayDSS = parent.name; // Direct report to SM
+          }
+      }
+  }
+
   const totalVolume = dsaRecords.reduce((sum, r) => sum + r.directVolume, 0);
   const totalApps = dsaRecords.reduce((sum, r) => sum + r.directApp, 0);
   const totalLoans = dsaRecords.reduce((sum, r) => sum + r.directLoan, 0);
   const totalCalls = dsaRecords.reduce((sum, r) => sum + r.callsMonth, 0);
 
   // --- NEW METRICS CALCULATIONS ---
-  // 1. ProApp: Total App / Current Day of Month (Progress)
-  // We use the day from the latest report date to represent "Current Progress Day"
   const currentDayProgress = parseInt(latest.reportDate.split('-')[2]) || 1;
   const proApp = (totalApps / currentDayProgress).toFixed(2);
-
-  // 2. Case Size: Total Volume / Total Loan
   const caseSize = totalLoans > 0 ? totalVolume / totalLoans : 0;
 
   // KPI Calculation Formula
@@ -46,12 +67,14 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
   const TARGET_APPS = 10;
   const TARGET_CALLS = 100;
 
-  // Calculate components capped at their weight (bonus points logic can be added later, here max is capped)
   const volScore = Math.min(40, (totalVolume / TARGET_VOLUME) * 40);
   const appScore = Math.min(30, (totalApps / TARGET_APPS) * 30);
   const callScore = Math.min(30, (totalCalls / TARGET_CALLS) * 30);
   
   const kpiScore = (volScore + appScore + callScore).toFixed(1);
+
+  // Permissions
+  const canEditRecord = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -62,7 +85,9 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
         </button>
         <div>
           <h2 className="text-2xl font-bold">{latest.name}</h2>
-          <p className="text-emerald-100 opacity-90 text-sm">{maskCode(latest.dsaCode)} | {latest.dss} | {latest.smName}</p>
+          <p className="text-emerald-100 opacity-90 text-sm">
+              {maskCode(latest.dsaCode)} || {displayDSS || '---'} || {displaySM || '---'}
+          </p>
         </div>
         <div className="ml-auto text-right relative">
           <div className="text-xs uppercase opacity-70 mb-1 flex items-center justify-end gap-1">
@@ -130,7 +155,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
       </div>
 
       <div className="p-6">
-        {/* KPI Cards Grid - Updated to 3 columns for better fit of 6 items */}
+        {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
            {/* Card 1: Volume */}
            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
@@ -143,7 +168,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
               </div>
            </div>
 
-           {/* Card 2: ProApp (NEW) */}
+           {/* Card 2: ProApp */}
            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
               <div className="flex items-center text-indigo-700 mb-2">
                  <BarChart2 size={18} className="mr-2" />
@@ -163,7 +188,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
               <div className="text-lg md:text-xl font-bold text-gray-800">{totalApps}</div>
            </div>
 
-           {/* Card 4: Case Size (NEW) */}
+           {/* Card 4: Case Size */}
            <div className="bg-teal-50 p-4 rounded-lg border border-teal-100">
               <div className="flex items-center text-teal-700 mb-2">
                  <PieChart size={18} className="mr-2" />
@@ -210,33 +235,57 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack }) =
                    <th className="px-4 py-3 text-center">Tờ rơi</th>
                    <th className="px-4 py-3 text-center">Cuộc gọi</th>
                    <th className="px-4 py-3 text-center">Trạng thái</th>
+                   <th className="px-4 py-3 text-center bg-gray-100">Thao tác</th>
                 </tr>
              </thead>
              <tbody>
                 {dsaRecords.length > 0 ? (
-                    dsaRecords.map(r => (
-                    <tr key={r.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">{r.reportDate}</td>
-                        <td className="px-4 py-3 text-right font-medium text-emerald-700 bg-emerald-50/30">
-                            {new Intl.NumberFormat('vi-VN').format(r.directVolume)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-emerald-600 bg-emerald-50/30">
-                            {new Intl.NumberFormat('vi-VN').format(r.directBanca)}
-                        </td>
-                        <td className="px-4 py-3 text-center bg-blue-50/30">{r.directApp} / {r.directLoan}</td>
-                        <td className="px-4 py-3 text-center bg-red-50/30">{r.directAppCRC || 0} / {r.directLoanCRC || 0}</td>
-                        <td className="px-4 py-3 text-center bg-purple-50/30">{r.directAppFEOL || 0} / {r.directLoanFEOL || 0}</td>
-                        <td className="px-4 py-3 text-center">{r.flyers}</td>
-                        <td className="px-4 py-3 text-center">{r.callsMonth}</td>
-                        <td className="px-4 py-3 text-center">
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'Đã báo cáo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {r.status === 'Đã báo cáo' ? 'Y' : 'N'}
-                            </span>
-                        </td>
-                    </tr>
-                    ))
+                    dsaRecords.map(r => {
+                      const canApproveRecord = canEditRecord && r.approvalStatus === 'Pending';
+                      
+                      return (
+                        <tr key={r.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap font-medium">{r.reportDate}</td>
+                            <td className="px-4 py-3 text-right font-medium text-emerald-700 bg-emerald-50/30">
+                                {new Intl.NumberFormat('vi-VN').format(r.directVolume)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium text-emerald-600 bg-emerald-50/30">
+                                {new Intl.NumberFormat('vi-VN').format(r.directBanca)}
+                            </td>
+                            <td className="px-4 py-3 text-center bg-blue-50/30">{r.directApp} / {r.directLoan}</td>
+                            <td className="px-4 py-3 text-center bg-red-50/30">{r.directAppCRC || 0} / {r.directLoanCRC || 0}</td>
+                            <td className="px-4 py-3 text-center bg-purple-50/30">{r.directAppFEOL || 0} / {r.directLoanFEOL || 0}</td>
+                            <td className="px-4 py-3 text-center">{r.flyers}</td>
+                            <td className="px-4 py-3 text-center">{r.callsMonth}</td>
+                            <td className="px-4 py-3 text-center">
+                                <span className={`px-2 py-1 rounded text-xs font-bold ${r.approvalStatus === 'Pending' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                                  {r.approvalStatus === 'Pending' ? 'Chờ duyệt' : 'Đã duyệt'}
+                                </span>
+                            </td>
+                            <td className="px-4 py-3 text-center bg-gray-50/30">
+                                <div className="flex items-center justify-center space-x-1">
+                                    {canEditRecord && (
+                                        <button onClick={() => onEdit(r)} className="text-gray-500 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title="Chỉnh sửa">
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                    {canApproveRecord && (
+                                        <>
+                                            <button onClick={() => onApprove(r, true)} className="text-green-500 hover:bg-green-100 p-1 rounded" title="Duyệt">
+                                                <Check className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => onApprove(r, false)} className="text-red-500 hover:bg-red-100 p-1 rounded" title="Từ chối">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </td>
+                        </tr>
+                      );
+                    })
                 ) : (
-                    <tr><td colSpan={9} className="text-center p-4 italic text-gray-400">Chưa có dữ liệu báo cáo</td></tr>
+                    <tr><td colSpan={10} className="text-center p-4 italic text-gray-400">Chưa có dữ liệu báo cáo</td></tr>
                 )}
              </tbody>
           </table>
