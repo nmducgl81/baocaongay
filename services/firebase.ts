@@ -34,6 +34,12 @@ export { db, auth };
 // Trả về object chứa trạng thái và mã lỗi
 export const ensureAuth = async (): Promise<{ success: boolean; error?: string }> => {
   if (!auth) return { success: false, error: 'no-auth-instance' };
+  
+  // Optimization: If already signed in, skip network request to prevent flaky errors
+  if (auth.currentUser) {
+      return { success: true };
+  }
+
   try {
     // Đăng nhập ẩn danh để có quyền đọc/ghi database
     await signInAnonymously(auth);
@@ -47,6 +53,8 @@ export const ensureAuth = async (): Promise<{ success: boolean; error?: string }
        console.warn(`⚠️ Firebase Config Error (${errorCode}): Switching to Offline Mode.`);
     } else if (errorCode === 'resource-exhausted') {
        console.warn(`⚠️ Firebase Quota Exceeded: Switching to Offline Mode.`);
+    } else if (errorCode === 'auth/network-request-failed') {
+       console.warn(`⚠️ Firebase Connection Failed: App will run in Offline Mode.`);
     } else {
        console.error("❌ Firebase Auth Error:", errorCode, error.message);
     }

@@ -227,7 +227,7 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-8 gap-3 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 2xl:grid-cols-8 gap-3 mb-8">
               <StatsCard title="Doanh Số" value={`${formatCompact(stats.totalVolume)} ₫`} color="red" icon={<DollarSign size={20} />} />
               <StatsCard title="Tổng Banca" value={`${formatCompact(stats.totalBanca)} ₫`} color="green" icon={<Briefcase size={20} />} />
               <StatsCard title="% Banca" value={`${bancaPct}%`} color="orange" icon={<Percent size={20} />} />
@@ -278,7 +278,7 @@ const App: React.FC = () => {
           </>
         )}
         <div className="text-center py-6 mt-4 border-t border-dashed border-gray-200 text-[10px] text-gray-400">
-            <span className="font-mono">Version 1.2.0 (Backup & Restore)</span> • <a href="https://zalo.me/0867641331" target="_blank" rel="noreferrer" className="font-mono text-gray-300 hover:text-gray-500">Developed by DSS Nguyễn Minh Đức</a>
+            <span className="font-mono">Ver 1.2.0</span> • <a href="https://zalo.me/0867641331" target="_blank" rel="noreferrer" className="font-mono text-gray-300 hover:text-gray-500">Dev by DUCFOMO</a>
         </div>
       </main>
 

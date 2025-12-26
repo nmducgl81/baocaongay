@@ -62,8 +62,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         adSpend: true
   });
 
-  // REMOVED: useEffect for auto-hiding columns. We want users to scroll freely.
-
   const toggleColumn = (key: keyof typeof visibleColumns) => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
   const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
   
@@ -198,7 +196,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const showActionColumn = isMissingView || canDeleteSummary;
 
   return (
-    <div className="flex flex-col space-y-4 h-full w-full max-w-full">
+    <div className="flex flex-col space-y-4 w-full">
       {/* SCOPE TABS & BREADCRUMB */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
           <div className="flex flex-col md:flex-row md:items-center gap-2">
@@ -305,19 +303,20 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         </div>
       )}
 
-      {/* TABLE CONTAINER */}
-      <div className="w-full max-w-[100vw] overflow-hidden border border-gray-300 dark:border-gray-700 rounded-lg shadow-md bg-white dark:bg-gray-800 flex flex-col flex-1 h-[calc(100vh-140px)]">
+      {/* TABLE CONTAINER - Fixed: Adjusted height to ensure scrollability on mobile */}
+      {/* Removed overflow-hidden from parent to avoid sticky issues on Safari */}
+      <div className="w-full border border-gray-300 dark:border-gray-700 rounded-lg shadow-md bg-white dark:bg-gray-800 flex flex-col h-[65dvh] md:h-[calc(100vh-140px)] relative">
         {/* 'overflow-auto' enables scrolling in BOTH directions */}
-        <div className="overflow-auto flex-1 relative custom-scrollbar">
+        <div className="overflow-auto flex-1 relative custom-scrollbar rounded-lg">
           <table className="min-w-max border-collapse w-full text-xs md:text-sm">
             <thead className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 sticky top-0 z-40">
               <tr className="uppercase bg-emerald-500 text-white font-bold text-xs">
-                {/* STICKY COLUMN 1: TT (Index) - Fixed width 40px */}
+                {/* STICKY COLUMN 1: TT (Index) */}
                 <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-0 z-50 bg-emerald-700 w-[40px] min-w-[40px] max-w-[40px] text-center">TT</th>
                 
                 {visibleColumns.id && <th className="border border-gray-300 p-2 min-w-[60px] bg-gray-600">ID</th>}
                 
-                {/* STICKY COLUMN 2: Name - Fixed Width Mobile (130px), Fixed Width Desktop (200px) */}
+                {/* STICKY COLUMN 2: Name */}
                 <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[40px] z-50 bg-emerald-700 w-[130px] min-w-[130px] max-w-[130px] md:w-[200px] md:min-w-[200px] md:max-w-[200px] text-left shadow-lg">
                     {isMissingView ? 'Nhân sự (DSA)' : (tableScope === 'dsa' ? 'Nhân sự (DSA)' : tableScope === 'dss' ? 'Team (DSS)' : 'Khu Vực (SM)')}
                 </th>

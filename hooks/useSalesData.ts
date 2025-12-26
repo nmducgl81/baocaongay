@@ -148,8 +148,11 @@ export const useSalesData = (startDate: string, endDate: string) => {
 
     // 1. Merge locally (Upsert: Update if exists, Insert if new)
     setAllData(prev => {
-        const recordMap = new Map(prev.map(r => [r.id, r]));
+        // Explicitly type the Map to ensure proper type inference for values
+        const recordMap = new Map<string, SalesRecord>();
+        prev.forEach(r => recordMap.set(r.id, r));
         records.forEach(r => recordMap.set(r.id, r));
+
         const merged = Array.from(recordMap.values());
         
         // Sort by date desc (optional but good for display)
