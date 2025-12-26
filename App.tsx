@@ -20,7 +20,7 @@ import {
   Users, DollarSign, FileText, Plus, Loader2, LogOut, Download, BarChart2, 
   Settings, CreditCard, Percent, Briefcase, RefreshCw, Trophy, BellRing, 
   AlertTriangle, WifiOff, ShieldAlert, Calculator, BookOpen, Activity, 
-  Moon, Sun, Database, Sparkles, Lightbulb, PieChart, HelpCircle, FileCheck
+  Moon, Sun, Database, Sparkles, Lightbulb, PieChart, HelpCircle, FileCheck, AlignLeft
 } from 'lucide-react';
 
 const MOTIVATIONAL_QUOTES = [
@@ -157,7 +157,26 @@ const App: React.FC = () => {
              <button onClick={() => setCurrentScreen('knowledge')} className="hidden md:flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"><BookOpen size={18} className="mr-1.5"/> Kiến Thức</button>
              {canAccessSettings && <button onClick={() => setCurrentScreen('admin')} className="hidden md:flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"><Settings size={18} className="mr-1.5"/> Quản lý</button>}
              <button onClick={toggleTheme} className="p-2 text-gray-500">{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}</button>
-             <button onClick={handleHardReset} className="p-2 text-gray-500 hover:text-red-500"><Database size={20} /></button>
+             
+             {/* Hard Reset - ADMIN ONLY */}
+             {currentUser.role === 'ADMIN' && (
+                  <button 
+                    onClick={() => {
+                      if(window.confirm('CẢNH BÁO: Bạn có chắc muốn xóa bộ nhớ đệm và tải lại dữ liệu gốc từ Server?')) {
+                         localStorage.removeItem('sales_records');
+                         localStorage.removeItem('ts_sales');
+                         localStorage.removeItem('app_users');
+                         localStorage.removeItem('ts_users');
+                         window.location.reload();
+                      }
+                    }}
+                    className="p-2 rounded-full text-gray-500 hover:bg-red-50 hover:text-red-500 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
+                    title="Hard Reset Data"
+                  >
+                    <Database size={20} />
+                  </button>
+              )}
+
              <button onClick={logout} className="p-2 text-gray-400 hover:text-red-600"><LogOut size={20} /></button>
           </div>
         </div>

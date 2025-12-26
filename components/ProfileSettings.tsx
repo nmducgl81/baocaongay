@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { User } from '../types';
-import { X, Camera, Save, RefreshCw, Phone, User as UserIcon, Upload } from 'lucide-react';
+import { X, Camera, Save, RefreshCw, User as UserIcon } from 'lucide-react';
 
 interface ProfileSettingsProps {
   currentUser: User;
@@ -10,7 +10,6 @@ interface ProfileSettingsProps {
 
 export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onClose, onUpdate }) => {
   const [avatarPreview, setAvatarPreview] = useState<string | undefined>(currentUser.avatar);
-  const [phoneNumber, setPhoneNumber] = useState<string>(currentUser.phoneNumber || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,7 +70,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
       onUpdate({
           ...currentUser,
           avatar: avatarPreview,
-          phoneNumber: phoneNumber
       });
       onClose();
   };
@@ -118,20 +116,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, o
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-gray-800 dark:text-white">{currentUser.name}</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{currentUser.role} | {currentUser.dsaCode || currentUser.username}</p>
-                </div>
-
-                <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600">
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Số điện thoại (Zalo)</label>
-                    <div className="flex items-center">
-                        <Phone size={18} className="text-emerald-600 mr-2" />
-                        <input 
-                            type="text" 
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            className="bg-transparent border-none focus:ring-0 w-full text-gray-800 dark:text-white font-bold p-0"
-                            placeholder="Nhập số điện thoại..."
-                        />
-                    </div>
                 </div>
             </div>
 

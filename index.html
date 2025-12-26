@@ -2,7 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
     <title>DSA Sales Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -42,31 +42,15 @@
         }
       }
 
-      /* Mobile & Tablet: Scaling Logic */
+      /* Mobile: Allow font scaling but ensure readability */
       @media (max-width: 1023px) {
-        html { transition: font-size 0.2s ease; }
-        
-        /* Các mức thu phóng */
-        html.ui-scale-100 { font-size: 16px; }
-        html.ui-scale-90  { font-size: 14.4px; }
-        html.ui-scale-80  { font-size: 12.8px; }
-        html.ui-scale-70  { font-size: 11.2px; }
-        html.ui-scale-60  { font-size: 9.6px; }
-        
-        /* Tối ưu padding bảng khi thu nhỏ để hiện nhiều cột hơn */
-        html.ui-scale-90 td, html.ui-scale-90 th,
-        html.ui-scale-80 td, html.ui-scale-80 th,
-        html.ui-scale-70 td, html.ui-scale-70 th,
-        html.ui-scale-60 td, html.ui-scale-60 th { 
-           padding-left: 0.25rem !important; 
-           padding-right: 0.25rem !important;
-        }
+        html { font-size: 14px; }
       }
 
       /* Custom scrollbar for table */
       .custom-scrollbar::-webkit-scrollbar {
-        height: 4px; /* Mỏng hơn trên mobile */
-        width: 4px;
+        height: 6px; /* Dày hơn xíu trên mobile để dễ ấn */
+        width: 6px;
       }
       .custom-scrollbar::-webkit-scrollbar-track {
         background: transparent;

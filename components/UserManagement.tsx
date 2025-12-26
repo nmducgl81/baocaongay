@@ -4,7 +4,7 @@ import {
   Trash2, UserPlus, Save, X, Upload, Download, FileSpreadsheet, 
   Pencil, RefreshCw, CheckCircle, Settings, 
   CheckSquare, Square, Users, Shield, Search, FileUp, Plus, Camera,
-  Wand2, Phone, GripVertical, AlertTriangle, Briefcase, User as UserIcon, Filter
+  Wand2, GripVertical, AlertTriangle, Briefcase, User as UserIcon, Filter
 } from 'lucide-react';
 
 interface UserManagementProps {
@@ -50,7 +50,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     avatar: true,
     username: true,
     name: true,
-    phone: true,
     role: true,
     code: true,
     dss: true,
@@ -62,7 +61,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
     avatar: 80,
     username: 150,
     name: 220,
-    phone: 120,
     role: 120,
     code: 100,
     dss: 180,
@@ -341,7 +339,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const openAddForm = () => {
-      setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '', phoneNumber: '' });
+      setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '' });
       setAvatarPreview(null);
       setIsEditing(false);
       setAutoGenUsername(true); 
@@ -357,7 +355,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const resetForm = () => {
-    setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '', phoneNumber: '' });
+    setFormData({ role: 'DSA', username: '', name: '', dsaCode: '', parentId: '' });
     setAvatarPreview(null);
     setIsEditing(false);
     setShowForm(false);
@@ -462,9 +460,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
   };
 
   const downloadTemplate = () => {
-    const headers = "Username (Bat buoc),Ho Va Ten (Bat buoc),Chuc Vu (DSA/DSS/SM),Ma Code (DSA Code),SDT (So Dien Thoai),Username Quan Ly";
-    const example1 = "nguyenvana,Nguyen Van A,DSA,DA001,0901234567,dss_qua";
-    const example2 = "dss_moi,Le Thi B,DSS,,0987654321,sm_region1";
+    const headers = "Username (Bat buoc),Ho Va Ten (Bat buoc),Chuc Vu (DSA/DSS/SM),Ma Code (DSA Code),Username Quan Ly";
+    const example1 = "nguyenvana,Nguyen Van A,DSA,DA001,dss_qua";
+    const example2 = "dss_moi,Le Thi B,DSS,,sm_region1";
     const csvContent = "\uFEFF" + headers + "\n" + example1 + "\n" + example2;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -503,8 +501,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
           const name = parts[1]?.trim();
           const roleRaw = parts[2]?.trim().toUpperCase();
           const dsaCode = parts[3]?.trim();
-          const phone = parts[4]?.trim();
-          const managerUsername = parts[5]?.trim();
+          const managerUsername = parts[4]?.trim();
 
           const role = ['DSA', 'DSS', 'SM', 'RSM', 'ADMIN'].includes(roleRaw) ? roleRaw as any : 'DSA';
 
@@ -518,7 +515,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
              if (existingUser) {
                 const updatedFields: any = { name, role };
                 if (dsaCode) updatedFields.dsaCode = dsaCode;
-                if (phone) updatedFields.phoneNumber = phone;
                 
                 const userObj = { ...existingUser, ...updatedFields };
                 if (role === 'DSA' && dsaCode) {
@@ -534,7 +530,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                     role
                 };
                 if (dsaCode) userObj.dsaCode = dsaCode;
-                if (phone) userObj.phoneNumber = phone;
 
                 newUsers.push(userObj); 
                 userMap.set(username.toLowerCase(), userObj);
@@ -776,7 +771,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                     {visibleColumns.avatar && <ResizableHeader colKey="avatar" label="Ảnh" />}
                     {visibleColumns.username && <ResizableHeader colKey="username" label="Username" />}
                     {visibleColumns.name && <ResizableHeader colKey="name" label="Tên hiển thị" />}
-                    {visibleColumns.phone && <ResizableHeader colKey="phone" label="Số ĐT" />}
                     {visibleColumns.role && <ResizableHeader colKey="role" label="Chức vụ" />}
                     {visibleColumns.code && <ResizableHeader colKey="code" label="Code" />}
                     {visibleColumns.dss && <ResizableHeader colKey="dss" label="Trực thuộc DSS" />}
@@ -809,7 +803,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                         )}
                         {visibleColumns.username && <td className="p-4 font-semibold text-gray-800 dark:text-gray-200 truncate" title={u.username}>{u.username}</td>}
                         {visibleColumns.name && <td className="p-4 font-bold text-emerald-900 dark:text-emerald-300 truncate" title={u.name}>{u.name}</td>}
-                        {visibleColumns.phone && <td className="p-4 text-gray-700 dark:text-gray-400 font-mono text-xs truncate">{u.phoneNumber || '-'}</td>}
                         {visibleColumns.role && (
                             <td className="p-4 truncate">
                                 <span className={`px-2.5 py-1 rounded-md text-xs border font-bold shadow-sm ${u.role === 'ADMIN' ? 'bg-white dark:bg-gray-700 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' : u.role === 'SM' ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' : u.role === 'DSS' ? 'bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600'}`}>
@@ -974,25 +967,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, currentUs
                             />
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide mb-1 block">Số Điện Thoại (Zalo)</label>
-                                <input 
-                                    className="block w-full rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30 placeholder-gray-400 dark:placeholder-gray-500 font-medium text-gray-800 dark:text-gray-200"
-                                    value={formData.phoneNumber || ''}
-                                    onChange={e => setFormData({...formData, phoneNumber: e.target.value})}
-                                    placeholder="VD: 0987654321"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide mb-1 block">DSA Code</label>
-                                <input 
-                                    className="block w-full rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30 placeholder-gray-400 dark:placeholder-gray-500 font-mono text-gray-800 dark:text-gray-200"
-                                    value={formData.dsaCode || ''}
-                                    onChange={e => setFormData({...formData, dsaCode: e.target.value})}
-                                    placeholder="DA..."
-                                />
-                            </div>
+                        <div>
+                            <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wide mb-1 block">DSA Code</label>
+                            <input 
+                                className="block w-full rounded-lg border border-emerald-200 dark:border-emerald-800 p-3 text-sm bg-white dark:bg-gray-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 dark:focus:ring-emerald-900/30 placeholder-gray-400 dark:placeholder-gray-500 font-mono text-gray-800 dark:text-gray-200"
+                                value={formData.dsaCode || ''}
+                                onChange={e => setFormData({...formData, dsaCode: e.target.value})}
+                                placeholder="DA..."
+                            />
                         </div>
 
                          <div>

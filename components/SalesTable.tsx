@@ -7,9 +7,9 @@ interface SalesTableProps {
   onRowClick: (dsaCode: string) => void;
   onEdit: (record: SalesRecord) => void;
   onApprove: (record: SalesRecord, isApproved: boolean) => void;
-  onDelete?: (recordId: string) => void; // Optional delete handler
+  onDelete?: (recordId: string) => void;
   currentUser: User;
-  statusFilter: string; // New prop to control visibility of "Chưa báo cáo"
+  statusFilter: string;
 }
 
 type TableScope = 'dsa' | 'dss' | 'sm';
@@ -37,108 +37,86 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const showToolbar = currentUser.role !== 'DSA';
   const canConfigureColumns = currentUser.role === 'ADMIN' || ['RSM', 'SM', 'DSS'].includes(currentUser.role);
 
-  // Column Visibility State - OPTIMIZED FOR MOBILE
-  const [visibleColumns, setVisibleColumns] = useState(() => {
-    // Check if screen width is less than 768px (Mobile)
-    const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
-    
-    return {
+  // Default Visible Columns: Show ALL by default, user can scroll or hide manually
+  const [visibleColumns, setVisibleColumns] = useState({
         id: false, 
-        dss: !isMobile, // Hide DSS on mobile
-        sm: !isMobile,  // Hide SM on mobile
+        dss: true,
+        sm: true,
         approval: true,
         directApp: true,
         directLoan: true,
         directVolume: true,
-        
-        // Hide detailed metrics on mobile by default to prevent horizontal bloat
-        directAppCRC: !isMobile,
-        directLoanCRC: !isMobile,
-        directBanca: !isMobile,
-        directRol: !isMobile,
-        directAppFEOL: !isMobile,
-        directLoanFEOL: !isMobile,
-        directVolumeFEOL: !isMobile,
-        ctv: !isMobile,
-        newCtv: !isMobile,
-        flyers: !isMobile,
-        dlk: !isMobile,
-        newDlk: !isMobile,
-        calls: !isMobile,
-        adSpend: !isMobile
-    };
+        directAppCRC: true,
+        directLoanCRC: true,
+        directBanca: true,
+        directRol: true,
+        directAppFEOL: true,
+        directLoanFEOL: true,
+        directVolumeFEOL: true,
+        ctv: true,
+        newCtv: true,
+        flyers: true,
+        dlk: true,
+        newDlk: true,
+        calls: true,
+        adSpend: true
   });
+
+  // REMOVED: useEffect for auto-hiding columns. We want users to scroll freely.
 
   const toggleColumn = (key: keyof typeof visibleColumns) => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
   const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
   
   const canDeleteSummary = ['ADMIN', 'RSM'].includes(currentUser.role);
 
-  // Handle Tab Switch (Reset Drill-down)
   const handleTabChange = (scope: TableScope) => {
       setTableScope(scope);
-      setInternalFilter(null); // Reset filter when switching main tabs
+      setInternalFilter(null);
   };
 
-  // Handle Drill Down Click
   const handleSummaryClick = (record: any) => {
-      if (statusFilter === 'Chưa báo cáo') {
-          // In grouped view, clicking the name doesn't do much, users should click specific dates
-          return;
-      }
+      if (statusFilter === 'Chưa báo cáo') return;
 
       if (tableScope === 'sm') {
-          // Click SM -> View DSS of that SM
           setInternalFilter({ smName: record.name });
           setTableScope('dss');
       } else if (tableScope === 'dss') {
-          // Click DSS -> View DSA of that DSS
           setInternalFilter(prev => ({ ...(prev || {}), dss: record.name }));
           setTableScope('dsa');
       } else if (tableScope === 'dsa') {
-          // Click DSA Row -> Go to Detail View
           onRowClick(record.dsaCode);
       }
   };
 
-  // Reset Filter Logic
   const resetDrillDown = () => {
       setInternalFilter(null);
-      // Reset scope based on Role or default
       if (canShowSM) setTableScope('sm');
       else if (canShowDSS) setTableScope('dss');
       else setTableScope('dsa');
   };
 
-  // PROCESSING LOGIC (Filter + Sort + Aggregation):
   const displayRecords = useMemo(() => {
-     // 1. FILTER
+     // FILTER
      const term = searchTerm.toLowerCase();
      let records = data.filter(record => {
         const matchesSearch = record.name.toLowerCase().includes(term) || record.dsaCode.toLowerCase().includes(term);
-        
-        // Apply Drill-down filters if active
         let matchesInternal = true;
         if (internalFilter) {
             if (internalFilter.smName && record.smName !== internalFilter.smName) matchesInternal = false;
-            // Trim comparison to avoid whitespace issues
             if (internalFilter.dss && record.dss?.trim() !== internalFilter.dss?.trim()) matchesInternal = false;
         }
-
         return matchesSearch && matchesInternal;
      });
 
-     // 2. AGGREGATION LOGIC
-     // IF statusFilter is 'Chưa báo cáo', we GROUP BY DSA to compact the list
+     // AGGREGATION
      if (statusFilter === 'Chưa báo cáo') {
          const missingGroups: Record<string, any> = {};
-         
          records.forEach(r => {
              if (!missingGroups[r.dsaCode]) {
                  missingGroups[r.dsaCode] = {
                      ...r,
                      id: `group-missing-${r.dsaCode}`,
-                     missingDates: [r.reportDate], // Array to store missing dates
+                     missingDates: [r.reportDate],
                      missingCount: 1
                  };
              } else {
@@ -146,54 +124,42 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                  missingGroups[r.dsaCode].missingCount++;
              }
          });
-
-         // Convert back to array and sort by who misses the most
          const groupedRecords = Object.values(missingGroups);
          groupedRecords.sort((a, b) => b.missingCount - a.missingCount);
-         
-         // Sort dates within each record descending
          groupedRecords.forEach(g => {
              g.missingDates.sort((d1: string, d2: string) => d2.localeCompare(d1));
          });
-
          return groupedRecords;
      }
 
-     // NORMAL MODE: Aggregate by Scope
     const groupBy = tableScope === 'dss' ? 'dss' : (tableScope === 'sm' ? 'smName' : 'dsaCode');
     const groups: Record<string, any> = {};
 
     records.forEach(r => {
-        // Determine key
         let key = (r as any)[groupBy];
-        // For DSA scope, key is dsaCode. For others, it's name.
         if (!key) key = 'Unknown';
 
         if (!groups[key]) {
-            // Initialize Group Record
             groups[key] = {
                 ...r,
-                id: `group-${key}`, // Virtual ID for the row
-                name: tableScope === 'dsa' ? r.name : key, // Display Name
+                id: `group-${key}`,
+                name: tableScope === 'dsa' ? r.name : key,
                 dsaCode: tableScope === 'dsa' ? r.dsaCode : 'SUMMARY',
-                status: 'Tổng hợp', // Display status for aggregation
+                status: 'Tổng hợp',
                 approvalStatus: 'Approved',
-                // Initialize metrics to 0
                 directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
                 directVolume: 0, directBanca: 0, 
                 directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
                 ctv: 0, newCtv: 0, flyers: 0, dlk: 0, newDlk: 0, callsMonth: 0, adSpend: 0,
-                _childIds: [], // Store child IDs for bulk delete
-                missingCount: 0 // Track how many 'Chưa báo cáo' records
+                _childIds: [],
+                missingCount: 0
             };
         }
 
-        // Count missing reports
         if (r.status === 'Chưa báo cáo') {
             groups[key].missingCount += 1;
         }
 
-        // Sum Metrics (Only for reported records essentially, since virtual ones are 0)
         const g = groups[key];
         g.directApp += r.directApp;
         g.directLoan += r.directLoan;
@@ -218,7 +184,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
     records = Object.values(groups);
 
-     // 3. SORT (By Volume descending by default)
+     // SORT
      records.sort((a, b) => {
          const volA = a.directVolume + a.directVolumeFEOL;
          const volB = b.directVolume + b.directVolumeFEOL;
@@ -229,36 +195,26 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   }, [data, searchTerm, sortOrder, tableScope, internalFilter, statusFilter]);
 
   const isMissingView = statusFilter === 'Chưa báo cáo';
-  // Condition to show Action Column: Is Missing View (Need buttons) OR User can delete (Admin/RSM)
   const showActionColumn = isMissingView || canDeleteSummary;
 
   return (
-    <div className="flex flex-col space-y-4 h-full">
+    <div className="flex flex-col space-y-4 h-full w-full max-w-full">
       {/* SCOPE TABS & BREADCRUMB */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
           <div className="flex flex-col md:flex-row md:items-center gap-2">
               <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit overflow-x-auto max-w-full no-scrollbar">
                   {!isMissingView ? (
                       <>
-                        <button 
-                            onClick={() => handleTabChange('dsa')}
-                            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center transition-all whitespace-nowrap ${tableScope === 'dsa' ? 'bg-white dark:bg-gray-700 text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                        >
+                        <button onClick={() => handleTabChange('dsa')} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center transition-all whitespace-nowrap ${tableScope === 'dsa' ? 'bg-white dark:bg-gray-700 text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
                             <UserIcon size={16} className="mr-1 md:mr-2"/> Chi tiết
                         </button>
                         {canShowDSS && (
-                            <button 
-                                onClick={() => handleTabChange('dss')}
-                                className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center transition-all whitespace-nowrap ${tableScope === 'dss' ? 'bg-white dark:bg-gray-700 text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                            >
+                            <button onClick={() => handleTabChange('dss')} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center transition-all whitespace-nowrap ${tableScope === 'dss' ? 'bg-white dark:bg-gray-700 text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
                                 <Users size={16} className="mr-1 md:mr-2"/> Team
                             </button>
                         )}
                         {canShowSM && (
-                            <button 
-                                onClick={() => handleTabChange('sm')}
-                                className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center transition-all whitespace-nowrap ${tableScope === 'sm' ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                            >
+                            <button onClick={() => handleTabChange('sm')} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center transition-all whitespace-nowrap ${tableScope === 'sm' ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
                                 <Map size={16} className="mr-1 md:mr-2"/> Khu Vực
                             </button>
                         )}
@@ -270,7 +226,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                   )}
               </div>
 
-              {/* Drill Down Breadcrumb */}
               {internalFilter && !isMissingView && (
                   <div className="flex items-center text-sm bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-lg border border-orange-200 dark:border-orange-800 animate-in fade-in slide-in-from-left-4 overflow-x-auto max-w-full">
                       <button onClick={resetDrillDown} className="text-gray-500 hover:text-orange-600 flex-shrink-0"><RotateCcw size={14}/></button>
@@ -303,7 +258,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             </div>
             
             <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
-                {/* Sort Button (Hidden in Not Reported view as we sort by Date) */}
                 {!isMissingView && (
                     <button 
                     onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')} 
@@ -322,7 +276,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     {showColumnSettings && (
                         <>
                             <div className="fixed inset-0 z-20" onClick={() => setShowColumnSettings(false)}></div>
-                            <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden">
+                            <div className="absolute right-0 top-full mt-2 w-72 max-w-[90vw] bg-white dark:bg-gray-800 border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden animate-in fade-in zoom-in-95">
                                 <div className="p-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center"><span className="font-bold text-sm">Tùy chỉnh bảng</span><button onClick={() => setShowColumnSettings(false)}><X size={16}/></button></div>
                                 <div className="max-h-[400px] overflow-y-auto p-2">
                                     <div className="mb-3">
@@ -351,35 +305,34 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         </div>
       )}
 
-      {/* Use 100dvh for better mobile experience (dynamic viewport height) */}
-      <div className="w-full overflow-hidden border border-gray-300 dark:border-gray-700 rounded-lg shadow-md bg-white dark:bg-gray-800 flex flex-col flex-1 h-[calc(100dvh-140px)] md:h-[65vh]">
-        <div className="overflow-x-auto overflow-y-auto flex-1 relative custom-scrollbar">
+      {/* TABLE CONTAINER */}
+      <div className="w-full max-w-[100vw] overflow-hidden border border-gray-300 dark:border-gray-700 rounded-lg shadow-md bg-white dark:bg-gray-800 flex flex-col flex-1 h-[calc(100vh-140px)]">
+        {/* 'overflow-auto' enables scrolling in BOTH directions */}
+        <div className="overflow-auto flex-1 relative custom-scrollbar">
           <table className="min-w-max border-collapse w-full text-xs md:text-sm">
-            <thead className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 sticky top-0 z-20">
+            <thead className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 sticky top-0 z-40">
               <tr className="uppercase bg-emerald-500 text-white font-bold text-xs">
-                <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-0 z-30 bg-emerald-700 min-w-[35px] text-center">TT</th>
+                {/* STICKY COLUMN 1: TT (Index) - Fixed width 40px */}
+                <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-0 z-50 bg-emerald-700 w-[40px] min-w-[40px] max-w-[40px] text-center">TT</th>
+                
                 {visibleColumns.id && <th className="border border-gray-300 p-2 min-w-[60px] bg-gray-600">ID</th>}
                 
-                {/* Dynamic Name Column based on Scope */}
-                <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[35px] z-30 bg-emerald-700 min-w-[120px] text-left shadow-lg">
+                {/* STICKY COLUMN 2: Name - Fixed Width Mobile (130px), Fixed Width Desktop (200px) */}
+                <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[40px] z-50 bg-emerald-700 w-[130px] min-w-[130px] max-w-[130px] md:w-[200px] md:min-w-[200px] md:max-w-[200px] text-left shadow-lg">
                     {isMissingView ? 'Nhân sự (DSA)' : (tableScope === 'dsa' ? 'Nhân sự (DSA)' : tableScope === 'dss' ? 'Team (DSS)' : 'Khu Vực (SM)')}
                 </th>
 
-                {/* Only show Hierarchy columns in DSA view OR when viewing missing reports */}
                 {(tableScope === 'dsa' || isMissingView) && canShowDSS && visibleColumns.dss && <th className="border border-gray-300 p-2 min-w-[80px]">DSS</th>}
                 {(tableScope === 'dsa' || isMissingView) && canShowSM && visibleColumns.sm && <th className="border border-gray-300 p-2 min-w-[60px]">SM</th>}
                 
-                {/* In Summary views, show the parent hierarchy if relevant */}
                 {tableScope === 'dss' && canShowSM && !isMissingView && <th className="border border-gray-300 p-2 min-w-[60px]">SM</th>}
 
-                {/* Status / Missing List Column - Only visible if has permission or missing view */}
                 {showActionColumn && (
                     <th className="border border-gray-300 p-2 min-w-[40px] bg-gray-600 text-left">
-                        {isMissingView ? 'Danh sách ngày thiếu (Bấm để nhập)' : 'Xóa'}
+                        {isMissingView ? 'Danh sách ngày thiếu' : 'Xóa'}
                     </th>
                 )}
 
-                {/* METRICS - Only show if NOT in Missing View */}
                 {!isMissingView && (
                     <>
                         {visibleColumns.directApp && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">App</th>}
@@ -406,30 +359,25 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             <tbody className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
               {displayRecords.length > 0 ? (
                 displayRecords.map((row, index) => {
-                  // Mobile Optimization: Show only last name if space is tight
-                  const nameParts = row.name.split(' ');
-                  const lastName = nameParts[nameParts.length - 1];
-                  
-                  // Rol Calculation: Banca / Volume (Calculate fresh for aggregated rows)
                   const rolValue = row.directVolume > 0 ? (row.directBanca / row.directVolume) * 100 : 0;
                   const rolDisplay = rolValue.toFixed(1) + '%';
                   
-                  // Handle "Missing View" Logic
                   if (isMissingView) {
                       const missingDates = (row as any).missingDates || [];
                       const missingCount = (row as any).missingCount || 0;
 
                       return (
                         <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs md:text-sm font-medium bg-red-50/30 dark:bg-red-900/10">
-                            <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-10 font-medium bg-white dark:bg-gray-800 text-red-600">
+                            {/* Sticky Column 1: Index */}
+                            <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-30 font-medium bg-white dark:bg-gray-800 text-red-600 w-[40px] max-w-[40px] min-w-[40px]">
                                 {index + 1}
                             </td>
                             {visibleColumns.id && <td className="border border-gray-300 p-2 text-center font-mono text-[9px] text-gray-400">{row.id}</td>}
                             
-                            <td className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[35px] z-10 uppercase whitespace-nowrap font-bold bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400 shadow-lg">
-                                <span className="hidden sm:inline">{row.name}</span>
-                                <span className="sm:hidden">{lastName}</span>
-                                <span className="ml-2 text-xs text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">Thiếu: {missingCount}</span>
+                            {/* Sticky Column 2: Name */}
+                            <td className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[40px] z-30 uppercase font-bold bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400 shadow-lg w-[130px] min-w-[130px] max-w-[130px] md:w-[200px] md:min-w-[200px] md:max-w-[200px] truncate">
+                                <span>{row.name}</span>
+                                <span className="ml-2 text-xs text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full inline-block">{missingCount}</span>
                             </td>
 
                             {canShowDSS && visibleColumns.dss && <td className="border border-gray-300 dark:border-gray-600 p-2 whitespace-nowrap text-xs font-medium text-purple-700">{row.dss}</td>}
@@ -446,7 +394,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                                     key={date}
                                                     onClick={() => onEdit({ ...row, reportDate: date })}
                                                     className="px-2 py-1 text-xs font-bold bg-white border border-red-200 text-red-600 rounded hover:bg-red-500 hover:text-white transition-colors shadow-sm flex items-center"
-                                                    title={`Nhấn để báo cáo ngày ${date}`}
                                                 >
                                                     {shortDate} <Pencil size={10} className="ml-1 opacity-50"/>
                                                 </button>
@@ -459,39 +406,35 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       );
                   }
 
-                  // Handle Normal View
                   return (
                     <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs md:text-sm font-medium">
-                      <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-10 font-medium bg-white dark:bg-gray-800">
+                      {/* Sticky Column 1: Index */}
+                      <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-30 font-medium bg-white dark:bg-gray-800 w-[40px] max-w-[40px] min-w-[40px]">
                           {index + 1}
                       </td>
                       {visibleColumns.id && <td className="border border-gray-300 p-2 text-center font-mono text-[9px] text-gray-400">{row.id}</td>}
                       
-                      {/* Name Column (Clickable to Drill Down or Detail) */}
+                      {/* Sticky Column 2: Name */}
                       <td 
-                        className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[35px] z-10 uppercase whitespace-nowrap font-bold cursor-pointer hover:text-blue-600 hover:underline bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400 shadow-lg" 
+                        className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[40px] z-30 uppercase font-bold cursor-pointer hover:text-blue-600 hover:underline bg-white dark:bg-gray-800 text-emerald-800 dark:text-emerald-400 shadow-lg w-[130px] min-w-[130px] max-w-[130px] md:w-[200px] md:min-w-[200px] md:max-w-[200px] truncate" 
                         onClick={() => handleSummaryClick(row)}
+                        title={row.name}
                       >
-                        <span className="hidden sm:inline">{row.name}</span>
-                        <span className="sm:hidden">{lastName}</span>
+                        {row.name}
                         {(row as any)._childIds?.length > 0 && <span className="ml-2 text-[10px] text-gray-400 font-normal">({(row as any)._childIds.length})</span>}
                       </td>
                       
-                      {/* Hierarchy Columns */}
                       {tableScope === 'dsa' && canShowDSS && visibleColumns.dss && <td className="border border-gray-300 dark:border-gray-600 p-2 whitespace-nowrap text-xs font-medium text-purple-700">{row.dss}</td>}
                       {tableScope === 'dsa' && canShowSM && visibleColumns.sm && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-xs font-medium text-blue-700">{row.smName}</td>}
                       
-                      {/* Show SM column in DSS view for better context */}
                       {tableScope === 'dss' && canShowSM && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-xs font-bold text-blue-700">{row.smName}</td>}
 
-                      {/* Action / Status Column - Hidden if showActionColumn is false */}
                       {showActionColumn && (
                           <td className="border border-gray-300 dark:border-gray-600 p-2 text-center whitespace-nowrap">
                               {canDeleteSummary ? (
                                   <button 
                                     onClick={() => setDeleteConfirm({isOpen: true, ids: (row as any)._childIds, name: row.name})}
                                     className="text-red-400 hover:text-red-600 p-1 rounded" 
-                                    title={`Xóa ${(row as any)._childIds?.length} bản ghi của nhóm này`}
                                   >
                                       <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -499,7 +442,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                           </td>
                       )}
 
-                      {/* Metrics */}
                       {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.directApp}</td>}
                       {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-600 font-medium">{row.directLoan}</td>}
                       {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50">{row.directAppCRC || 0}</td>}
@@ -540,7 +482,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             </div>
         )}
         
-        {/* Bulk Delete Confirmation for Summary Rows */}
         {deleteConfirm && deleteConfirm.isOpen && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                 <div className="bg-white rounded-xl p-6 text-center max-w-sm w-full">
