@@ -75,11 +75,11 @@ export const UserGuide: React.FC<UserGuideProps> = ({ currentUser, onClose }) =>
                                 </div>
                                 <div className="flex items-start">
                                     <span className="font-bold min-w-[60px] text-gray-700 dark:text-gray-200">SM:</span>
-                                    <span className="text-gray-600 dark:text-gray-400">Xem tổng quan các Team (DSS) trong Khu vực. Bấm vào tên Team để xem chi tiết từng DSA trong Team đó.</span>
+                                    <span className="text-gray-600 dark:text-gray-400">Xem tổng quan các Khu vực (SM). Bấm vào SM &rarr; ra DSS &rarr; ra DSA (Mô hình 3 cấp).</span>
                                 </div>
                                 <div className="flex items-start">
                                     <span className="font-bold min-w-[60px] text-gray-700 dark:text-gray-200">RSM:</span>
-                                    <span className="text-gray-600 dark:text-gray-400">Xem tổng quan các Khu vực (SM). Bấm vào SM -> ra DSS -> ra DSA (Mô hình 3 cấp).</span>
+                                    <span className="text-gray-600 dark:text-gray-400">Xem tổng quan các Khu vực (SM). Bấm vào SM &rarr; ra DSS &rarr; ra DSA (Mô hình 3 cấp).</span>
                                 </div>
                              </div>
                              <div className="mt-3 pt-2 border-t border-indigo-200 dark:border-indigo-800 text-xs text-indigo-800 dark:text-indigo-300 font-medium italic">
@@ -101,23 +101,23 @@ export const UserGuide: React.FC<UserGuideProps> = ({ currentUser, onClose }) =>
                         <div className="border-l-4 border-red-500 bg-red-50 dark:bg-red-900/10 p-3 rounded-r-lg">
                             <span className="font-bold text-red-700 dark:text-red-400 block mb-1">1. Nhân sự thiếu báo cáo</span>
                             <p className="text-gray-600 dark:text-gray-300">
-                                -> Chọn lọc trạng thái <b>"Chưa báo cáo"</b> trên thanh công cụ.<br/>
-                                -> Chụp màn hình danh sách này gửi vào nhóm Zalo chung để nhắc nhở ngay lập tức.
+                                &rarr; Chọn lọc trạng thái <b>"Chưa báo cáo"</b> trên thanh công cụ.<br/>
+                                &rarr; Chụp màn hình danh sách này gửi vào nhóm Zalo chung để nhắc nhở ngay lập tức.
                             </p>
                         </div>
                         <div className="border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/10 p-3 rounded-r-lg">
                             <span className="font-bold text-orange-700 dark:text-orange-400 block mb-1">2. Doanh số thấp (Low Volume)</span>
                             <p className="text-gray-600 dark:text-gray-300">
-                                -> Chuyển biểu đồ sang tab <b>"Hoạt động"</b>.<br/>
-                                -> Kiểm tra: Nếu <i>Cuộc gọi/Tờ rơi</i> thấp => Yêu cầu tăng cường đi thị trường/gọi data.<br/>
-                                -> Kiểm tra: Nếu <i>Hoạt động cao</i> mà không có số => Cần training lại kỹ năng tư vấn (Skill issue).
+                                &rarr; Chuyển biểu đồ sang tab <b>"Hoạt động"</b>.<br/>
+                                &rarr; Kiểm tra: Nếu <i>Cuộc gọi/Tờ rơi</i> thấp &rArr; Yêu cầu tăng cường đi thị trường/gọi data.<br/>
+                                &rarr; Kiểm tra: Nếu <i>Hoạt động cao</i> mà không có số &rArr; Cần training lại kỹ năng tư vấn (Skill issue).
                             </p>
                         </div>
                         <div className="border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/10 p-3 rounded-r-lg">
                             <span className="font-bold text-blue-700 dark:text-blue-400 block mb-1">3. Tỷ lệ duyệt thấp (App nhiều - Loan ít)</span>
                             <p className="text-gray-600 dark:text-gray-300">
-                                -> Kiểm tra cột <b>"Loan vs App"</b> trong bảng chi tiết.<br/>
-                                -> Nếu tỷ lệ rớt hồ sơ {'>'} 50% => Cần xem lại chất lượng khách hàng hoặc cách thẩm định sơ bộ (Pre-check) của nhân viên.
+                                &rarr; Kiểm tra cột <b>"Loan vs App"</b> trong bảng chi tiết.<br/>
+                                &rarr; Nếu tỷ lệ rớt hồ sơ {'>'} 50% &rArr; Cần xem lại chất lượng khách hàng hoặc cách thẩm định sơ bộ (Pre-check) của nhân viên.
                             </p>
                         </div>
                     </div>
@@ -169,7 +169,7 @@ export const UserGuide: React.FC<UserGuideProps> = ({ currentUser, onClose }) =>
                         <Camera className="text-emerald-500 mr-2 flex-shrink-0 mt-0.5" size={18} />
                         <div>
                             <span className="font-bold text-gray-800 dark:text-gray-200">Đổi Avatar:</span>
-                            <p className="text-gray-500">Bấm vào tên bạn -> Chọn biểu tượng Camera. Avatar đẹp giúp bạn nổi bật trên bảng xếp hạng thi đua.</p>
+                            <p className="text-gray-500">Bấm vào tên bạn -&gt; Chọn biểu tượng Camera. Avatar đẹp giúp bạn nổi bật trên bảng xếp hạng thi đua.</p>
                         </div>
                      </li>
                      <li className="flex items-start">

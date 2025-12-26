@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SalesRecord } from '../types';
 import { db, ensureAuth } from '../services/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
 import { generateMockData } from '../services/mockData';
 
 const SALES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -110,6 +110,78 @@ export const useSalesData = (startDate: string, endDate: string) => {
       }
   };
 
+  const bulkDeleteRecords = async (ids: string[]) => {
+      if (ids.length === 0) return;
+      
+      // 1. Update State & LocalStorage
+      setAllData(prev => {
+          const updated = prev.filter(r => !ids.includes(r.id));
+          localStorage.setItem('sales_records', JSON.stringify(updated));
+          return updated;
+      });
+      setLastUpdated(new Date());
+
+      // 2. Update Firebase
+      if (db && isOnline) {
+          try {
+              // Firebase batches are limited to 500 ops
+              const chunkSize = 400; 
+              for (let i = 0; i < ids.length; i += chunkSize) {
+                  const chunk = ids.slice(i, i + chunkSize);
+                  const batch = writeBatch(db);
+                  chunk.forEach(id => {
+                      if (!id.startsWith('virt-')) {
+                          batch.delete(doc(db, "sales_records", id));
+                      }
+                  });
+                  await batch.commit();
+                  console.log(`Deleted batch ${i/chunkSize + 1}`);
+              }
+          } catch (e) {
+              console.error("Bulk delete failed", e);
+          }
+      }
+  };
+
+  const importData = async (records: SalesRecord[]) => {
+    if (records.length === 0) return;
+
+    // 1. Merge locally (Upsert: Update if exists, Insert if new)
+    setAllData(prev => {
+        const recordMap = new Map(prev.map(r => [r.id, r]));
+        records.forEach(r => recordMap.set(r.id, r));
+        const merged = Array.from(recordMap.values());
+        
+        // Sort by date desc (optional but good for display)
+        merged.sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+        
+        localStorage.setItem('sales_records', JSON.stringify(merged));
+        return merged;
+    });
+    setLastUpdated(new Date());
+
+    // 2. Batch Update Firebase
+    if (db && isOnline) {
+        try {
+            const chunkSize = 400; 
+            for (let i = 0; i < records.length; i += chunkSize) {
+                const chunk = records.slice(i, i + chunkSize);
+                const batch = writeBatch(db);
+                chunk.forEach(record => {
+                    if (!record.id.startsWith('virt-')) {
+                        batch.set(doc(db!, "sales_records", record.id), sanitize(record));
+                    }
+                });
+                await batch.commit();
+                console.log(`Imported batch ${i/chunkSize + 1}`);
+            }
+        } catch (e) {
+            console.error("Import to Firebase failed", e);
+            alert("Lỗi khi đồng bộ lên Server. Dữ liệu đã được lưu offline.");
+        }
+    }
+  };
+
   return {
       allData,
       isLoading,
@@ -117,6 +189,8 @@ export const useSalesData = (startDate: string, endDate: string) => {
       lastUpdated,
       refresh: () => fetchData(true),
       saveRecord,
-      deleteRecord
+      deleteRecord,
+      bulkDeleteRecords,
+      importData
   };
 };

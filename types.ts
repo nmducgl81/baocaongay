@@ -75,4 +75,4 @@ export interface KnowledgeArticle {
 }
 
 export type ViewMode = 'table' | 'chart';
-export type AppScreen = 'dashboard' | 'detail' | 'admin' | 'calculator' | 'knowledge';
+export type AppScreen = 'dashboard' | 'detail' | 'admin' | 'calculator' | 'knowledge' | 'data';

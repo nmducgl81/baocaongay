@@ -15,12 +15,13 @@ import { LoanCalculator } from './components/LoanCalculator';
 import { KnowledgeBase } from './components/KnowledgeBase';
 import { ProfileSettings } from './components/ProfileSettings';
 import { UserGuide } from './components/UserGuide'; 
+import { DataManagement } from './components/DataManagement';
 
 import { 
   Users, DollarSign, FileText, Plus, Loader2, LogOut, Download, BarChart2, 
   Settings, CreditCard, Percent, Briefcase, RefreshCw, Trophy, BellRing, 
   AlertTriangle, WifiOff, ShieldAlert, Calculator, BookOpen, Activity, 
-  Moon, Sun, Database, Sparkles, Lightbulb, PieChart, HelpCircle, FileCheck, AlignLeft
+  Moon, Sun, Database, Sparkles, Lightbulb, PieChart, HelpCircle, FileCheck, AlignLeft, Archive
 } from 'lucide-react';
 
 const MOTIVATIONAL_QUOTES = [
@@ -67,7 +68,7 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('dssFilter', dssFilter); }, [dssFilter]);
 
   // --- DATA LOGIC ---
-  const { allData, isLoading, isOnline, refresh, saveRecord, deleteRecord } = useSalesData(startDate, endDate);
+  const { allData, isLoading, isOnline, refresh, saveRecord, deleteRecord, bulkDeleteRecords, importData } = useSalesData(startDate, endDate);
   
   // --- BUSINESS LOGIC ---
   const { filteredData, stats, dsaInfo, headcount, uniqueReportedCount } = useSalesFilter({
@@ -90,7 +91,6 @@ const App: React.FC = () => {
   const handleCreateNew = () => { setEditingRecord(null); setShowForm(true); };
   const handleSelectDSA = (dsaCode: string) => { setSelectedDSA(dsaCode); setCurrentScreen('detail'); };
   const handleDateChange = (start: string, end: string) => { setStartDate(start); setEndDate(end); };
-  const handleHardReset = () => { if(window.confirm("Xóa Cache và Tải lại dữ liệu?")) { localStorage.removeItem('sales_records'); refresh(); } };
 
   const handleExportCSV = () => {
     if (filteredData.length === 0) { alert("Không có dữ liệu!"); return; }
@@ -116,7 +116,6 @@ const App: React.FC = () => {
   }, [users, currentUser]);
 
   const notReportedCount = headcount - uniqueReportedCount;
-  const pendingCount = allData.filter(r => r.approvalStatus === 'Pending' && (currentUser?.role === 'ADMIN' || users.find(u => u.dsaCode === r.dsaCode && u.parentId === currentUser?.id))).length; // Simple check
   const isViewingToday = startDate === new Date().toISOString().split('T')[0] && endDate === startDate;
   
   // Calculation
@@ -130,6 +129,7 @@ const App: React.FC = () => {
   if (!currentUser) return <Login />; 
 
   const canAccessSettings = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
+  const isAdmin = currentUser.role === 'ADMIN';
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col font-sans transition-colors duration-300">
@@ -155,11 +155,23 @@ const App: React.FC = () => {
              <button onClick={() => setShowUserGuide(true)} className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50"><HelpCircle size={22}/></button>
              <button onClick={() => setCurrentScreen('calculator')} className="hidden md:flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"><Calculator size={18} className="mr-1.5"/> Tính Lãi</button>
              <button onClick={() => setCurrentScreen('knowledge')} className="hidden md:flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"><BookOpen size={18} className="mr-1.5"/> Kiến Thức</button>
-             {canAccessSettings && <button onClick={() => setCurrentScreen('admin')} className="hidden md:flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"><Settings size={18} className="mr-1.5"/> Quản lý</button>}
+             
+             {canAccessSettings && (
+                 <button onClick={() => setCurrentScreen('admin')} className="hidden md:flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
+                    <Settings size={18} className="mr-1.5"/> Quản lý
+                 </button>
+             )}
+             
+             {isAdmin && (
+                 <button onClick={() => setCurrentScreen('data')} className="hidden md:flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50" title="Quản trị dữ liệu (Backup/Cleanup)">
+                    <Archive size={18} className="mr-1.5"/> Data
+                 </button>
+             )}
+
              <button onClick={toggleTheme} className="p-2 text-gray-500">{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}</button>
              
              {/* Hard Reset - ADMIN ONLY */}
-             {currentUser.role === 'ADMIN' && (
+             {isAdmin && (
                   <button 
                     onClick={() => {
                       if(window.confirm('CẢNH BÁO: Bạn có chắc muốn xóa bộ nhớ đệm và tải lại dữ liệu gốc từ Server?')) {
@@ -171,7 +183,7 @@ const App: React.FC = () => {
                       }
                     }}
                     className="p-2 rounded-full text-gray-500 hover:bg-red-50 hover:text-red-500 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
-                    title="Hard Reset Data"
+                    title="Hard Reset Cache"
                   >
                     <Database size={20} />
                   </button>
@@ -185,6 +197,8 @@ const App: React.FC = () => {
       <main className="flex-1 w-full lg:max-w-[1920px] mx-auto px-4 py-8 flex flex-col">
         {currentScreen === 'admin' ? (
           <UserManagement users={users} currentUser={currentUser} onAddUser={addUser} onUpdateUser={updateUser} onDeleteUser={deleteUser} onBulkDeleteUsers={bulkDeleteUsers} onClose={() => setCurrentScreen('dashboard')} />
+        ) : currentScreen === 'data' ? (
+           <DataManagement allData={allData} onBulkDelete={bulkDeleteRecords} onImportData={importData} onClose={() => setCurrentScreen('dashboard')} />
         ) : currentScreen === 'calculator' ? (
             <LoanCalculator currentUser={currentUser} onClose={() => setCurrentScreen('dashboard')} />
         ) : currentScreen === 'knowledge' ? (
@@ -263,7 +277,9 @@ const App: React.FC = () => {
             )}
           </>
         )}
-        <div className="text-center py-6 mt-4 border-t border-dashed border-gray-200"><a href="https://zalo.me/0867641331" target="_blank" rel="noreferrer" className="text-[10px] font-mono text-gray-300 hover:text-gray-500">Developed by DSS Nguyễn Minh Đức</a></div>
+        <div className="text-center py-6 mt-4 border-t border-dashed border-gray-200 text-[10px] text-gray-400">
+            <span className="font-mono">Version 1.2.0 (Backup & Restore)</span> • <a href="https://zalo.me/0867641331" target="_blank" rel="noreferrer" className="font-mono text-gray-300 hover:text-gray-500">Developed by DSS Nguyễn Minh Đức</a>
+        </div>
       </main>
 
       {showForm && <EntryForm onClose={() => setShowForm(false)} onSave={saveRecord} currentUser={currentUser} users={users} initialData={editingRecord} existingRecords={allData} />}
