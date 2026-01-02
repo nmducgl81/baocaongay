@@ -34,8 +34,10 @@ export const useSalesFilter = ({
                         dss = parent.name;
                         const grandParent = users.find(gp => gp.id === parent.parentId);
                         if (grandParent && grandParent.role === 'SM') sm = grandParent.name;
+                        else if (grandParent && grandParent.role === 'ADMIN') sm = ''; 
                     } else if (parent.role === 'SM') {
                         sm = parent.name;
+                        dss = parent.name; 
                     }
                 }
                 hierarchyMap.set(u.dsaCode, { dss, sm });
@@ -49,13 +51,11 @@ export const useSalesFilter = ({
         if (!currentUser) return [];
         const { visibleIds, hierarchyMap } = hierarchyInfo;
 
-        // A. Filter Actual Records
         let actualRecords = allData.filter(record => 
             visibleIds.includes(record.dsaCode) && 
             record.reportDate >= startDate && 
             record.reportDate <= endDate
         ).map(record => {
-            // Sync Hierarchy Names
             const currentHierarchy = hierarchyMap.get(record.dsaCode);
             if (currentHierarchy) {
                 return {
@@ -67,18 +67,18 @@ export const useSalesFilter = ({
             return record;
         });
 
-        // B. Apply Dropdown Filters
-        if (smFilter !== 'all') actualRecords = actualRecords.filter(r => r.smName === smFilter);
+        let effectiveSmFilter = smFilter;
+        if (currentUser.role === 'SM') effectiveSmFilter = currentUser.name;
+
+        if (effectiveSmFilter !== 'all') actualRecords = actualRecords.filter(r => r.smName === effectiveSmFilter);
         if (dssFilter !== 'all') actualRecords = actualRecords.filter(r => r.dss === dssFilter);
 
         if (statusFilter === 'Đã báo cáo') return actualRecords.filter(r => r.status === 'Đã báo cáo');
         if (statusFilter === 'Pending') return actualRecords.filter(r => r.approvalStatus === 'Pending');
 
-        // C. Generate "Missing" (Virtual) Records
         const dayDiff = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 3600 * 24);
         let virtualRecords: SalesRecord[] = [];
 
-        // Only generate if range is reasonable (<= 31 days)
         if (dayDiff <= 31) {
             const dsaUsersInScope = users.filter(u => u.role === 'DSA' && visibleIds.includes(u.dsaCode || ''));
             const existingMap = new Set(actualRecords.map(r => `${r.dsaCode}_${r.reportDate}`));
@@ -88,11 +88,10 @@ export const useSalesFilter = ({
             
             while (dt <= endDt) {
                 const dateStr = dt.toISOString().split('T')[0];
-                
                 dsaUsersInScope.forEach(user => {
                     const hier = hierarchyMap.get(user.dsaCode || '') || { dss: '', sm: '' };
                     let matchesFilter = true;
-                    if (smFilter !== 'all' && hier.sm !== smFilter) matchesFilter = false;
+                    if (effectiveSmFilter !== 'all' && hier.sm !== effectiveSmFilter) matchesFilter = false;
                     if (dssFilter !== 'all' && hier.dss !== dssFilter) matchesFilter = false;
 
                     if (matchesFilter) {
@@ -134,7 +133,8 @@ export const useSalesFilter = ({
             reportedCount: curr.status === 'Đã báo cáo' ? acc.reportedCount + 1 : acc.reportedCount, 
             totalVolume: acc.totalVolume + curr.directVolume + (curr.directVolumeFEOL || 0), 
             totalDirectVolume: acc.totalDirectVolume + curr.directVolume, 
-            totalApps: acc.totalApps + curr.directApp, 
+            // CẬP NHẬT: Tổng App bao gồm cả Trực tiếp và FEOL
+            totalApps: acc.totalApps + curr.directApp + (curr.directAppFEOL || 0), 
             totalLoans: acc.totalLoans + curr.directLoan, 
             totalLoansFEOL: acc.totalLoansFEOL + (curr.directLoanFEOL || 0), 
             totalLoanCRC: acc.totalLoanCRC + (curr.directLoanCRC || 0), 
@@ -142,13 +142,11 @@ export const useSalesFilter = ({
         }), { totalRecords: 0, reportedCount: 0, totalVolume: 0, totalDirectVolume: 0, totalApps: 0, totalLoans: 0, totalLoansFEOL: 0, totalLoanCRC: 0, totalBanca: 0 });
     }, [filteredData]);
 
-    // 4. Calculate DSA Info (Rank, Status for Current User)
     const dsaInfo = useMemo(() => {
         if (currentUser?.role !== 'DSA') return null;
         const today = new Date().toISOString().split('T')[0];
         const isReportedToday = allData.some(r => r.dsaCode === currentUser.dsaCode && r.reportDate === today && r.status === 'Đã báo cáo');
         
-        // Calculate Rank in Global Scope
         const volumeMap = new Map<string, number>();
         users.filter(u => u.role === 'DSA').forEach(u => u.dsaCode && volumeMap.set(u.dsaCode, 0));
         
@@ -165,12 +163,23 @@ export const useSalesFilter = ({
         return { isReportedToday, rank: myRank || sorted.length, totalDSAs: sorted.length };
     }, [currentUser, allData, startDate, endDate, users]);
 
-    // 5. Headcount Logic
     const headcount = useMemo(() => {
         if (!currentUser) return 0;
         const { visibleIds } = hierarchyInfo;
         let target = users.filter(u => u.role === 'DSA' && visibleIds.includes(u.dsaCode || ''));
-        if (smFilter !== 'all') target = target.filter(u => { const p = users.find(x => x.id === u.parentId); if (!p) return false; if (p.role === 'SM') return p.name === smFilter; const gp = users.find(x => x.id === p.parentId); return gp && gp.name === smFilter; });
+        
+        let effectiveSmFilter = smFilter;
+        if (currentUser.role === 'SM') effectiveSmFilter = currentUser.name;
+
+        if (effectiveSmFilter !== 'all') {
+            target = target.filter(u => { 
+                const p = users.find(x => x.id === u.parentId); 
+                if (!p) return false; 
+                if (p.role === 'SM') return p.name === effectiveSmFilter; 
+                const gp = users.find(x => x.id === p.parentId); 
+                return gp && gp.name === effectiveSmFilter; 
+            });
+        }
         if (dssFilter !== 'all') target = target.filter(u => users.find(x => x.id === u.parentId)?.name === dssFilter);
         return target.length;
     }, [users, currentUser, smFilter, dssFilter, hierarchyInfo]);

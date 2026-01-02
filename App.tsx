@@ -36,10 +36,8 @@ const MOTIVATIONAL_QUOTES = [
 ];
 
 const App: React.FC = () => {
-  // --- CONTEXT & HOOKS ---
   const { currentUser, users, login, logout, addUser, updateUser, deleteUser, bulkDeleteUsers, updateProfile } = useAuth();
   
-  // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('app_theme') as 'light' | 'dark') || 'light');
   useEffect(() => {
     const root = window.document.documentElement;
@@ -48,7 +46,6 @@ const App: React.FC = () => {
   }, [theme]);
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  // Filter States
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('viewMode') as ViewMode) || 'chart');
   const [startDate, setStartDate] = useState<string>(() => {
     const today = new Date();
@@ -56,10 +53,18 @@ const App: React.FC = () => {
   });
   const [endDate, setEndDate] = useState<string>(() => localStorage.getItem('endDate') || new Date().toISOString().split('T')[0]);
   const [statusFilter, setStatusFilter] = useState<string>(() => localStorage.getItem('statusFilter') || 'all');
-  const [smFilter, setSmFilter] = useState<string>(() => localStorage.getItem('smFilter') || 'all');
+  
+  const [smFilter, setSmFilter] = useState<string>(() => {
+    const saved = localStorage.getItem('smFilter') || 'all';
+    if (currentUser?.role === 'SM') return currentUser.name;
+    return saved;
+  });
   const [dssFilter, setDssFilter] = useState<string>(() => localStorage.getItem('dssFilter') || 'all');
 
-  // Persist filters
+  useEffect(() => {
+    if (currentUser?.role === 'SM') setSmFilter(currentUser.name);
+  }, [currentUser]);
+
   useEffect(() => { localStorage.setItem('viewMode', viewMode); }, [viewMode]);
   useEffect(() => { localStorage.setItem('startDate', startDate); }, [startDate]);
   useEffect(() => { localStorage.setItem('endDate', endDate); }, [endDate]);
@@ -67,15 +72,11 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('smFilter', smFilter); }, [smFilter]);
   useEffect(() => { localStorage.setItem('dssFilter', dssFilter); }, [dssFilter]);
 
-  // --- DATA LOGIC ---
   const { allData, isLoading, isOnline, refresh, saveRecord, deleteRecord, bulkDeleteRecords, importData } = useSalesData(startDate, endDate);
-  
-  // --- BUSINESS LOGIC ---
   const { filteredData, stats, dsaInfo, headcount, uniqueReportedCount } = useSalesFilter({
       allData, users, currentUser, startDate, endDate, statusFilter, smFilter, dssFilter
   });
 
-  // UI States
   const [showForm, setShowForm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showUserGuide, setShowUserGuide] = useState(false);
@@ -85,7 +86,6 @@ const App: React.FC = () => {
 
   const randomQuote = useMemo(() => MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)], []);
 
-  // --- HANDLERS ---
   const handleEditRecord = (record: SalesRecord) => { if (record.id.startsWith('virt-')) setEditingRecord(null); else setEditingRecord(record); setShowForm(true); };
   const handleApproveRecord = (record: SalesRecord, isApproved: boolean) => { if (record.id.startsWith('virt-')) return; saveRecord({ ...record, approvalStatus: isApproved ? 'Approved' : 'Rejected' }); };
   const handleCreateNew = () => { setEditingRecord(null); setShowForm(true); };
@@ -103,29 +103,32 @@ const App: React.FC = () => {
     link.click();
   };
 
-  // Helper Filters
   const setFilterToday = () => { const t = new Date().toISOString().split('T')[0]; setStartDate(t); setEndDate(t); };
   const setFilterWeek = () => { const d = new Date(); const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); const w = new Date(d.setDate(diff)).toISOString().split('T')[0]; setStartDate(w); setEndDate(new Date().toISOString().split('T')[0]); };
   const setFilterMonth = () => { const d = new Date(); setStartDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`); setEndDate(new Date().toISOString().split('T')[0]); };
 
   const { smOptions, dssOptions } = useMemo(() => {
     if (!currentUser) return { smOptions: [], dssOptions: [] };
-    const sms = users.filter(u => u.role === 'SM').sort((a,b) => a.name.localeCompare(b.name));
-    const dsss = users.filter(u => u.role === 'DSS').sort((a,b) => a.name.localeCompare(b.name));
+    let sms = users.filter(u => u.role === 'SM').sort((a,b) => a.name.localeCompare(b.name));
+    if (currentUser.role === 'SM') sms = sms.filter(s => s.id === currentUser.id);
+    let dsss = users.filter(u => u.role === 'DSS').sort((a,b) => a.name.localeCompare(b.name));
+    if (currentUser.role === 'SM') dsss = dsss.filter(d => d.parentId === currentUser.id);
+    else if (currentUser.role === 'DSS') dsss = dsss.filter(d => d.id === currentUser.id);
     return { smOptions: sms, dssOptions: dsss };
   }, [users, currentUser]);
 
   const notReportedCount = headcount - uniqueReportedCount;
   const isViewingToday = startDate === new Date().toISOString().split('T')[0] && endDate === startDate;
   
-  // Calculation
   const diffDays = Math.ceil(Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime()) / (86400000)) + 1;
-  const proApp = (stats.totalApps / Math.max(1, diffDays) / Math.max(1, headcount)).toFixed(2);
+  // CẬP NHẬT: ProApp hiển thị kèm tổng App
+  const proAppVal = (stats.totalApps / Math.max(1, diffDays) / Math.max(1, headcount)).toFixed(2);
+  const proAppDisplay = `${proAppVal} (${stats.totalApps} App)`;
+  
   const caseSize = (stats.totalLoans + stats.totalLoansFEOL) > 0 ? stats.totalVolume / (stats.totalLoans + stats.totalLoansFEOL) : 0;
   const bancaPct = stats.totalVolume > 0 ? ((stats.totalBanca / stats.totalVolume) * 100).toFixed(1) : '0';
   const formatCompact = (v: number) => new Intl.NumberFormat('vi-VN', { notation: "compact", compactDisplay: "short" }).format(v);
 
-  // RENDER LOGIN
   if (!currentUser) return <Login />; 
 
   const canAccessSettings = ['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role);
@@ -135,7 +138,6 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col font-sans transition-colors duration-300">
       {!isOnline && <div className="bg-orange-100 text-orange-800 px-4 py-2 text-xs font-bold text-center border-b border-orange-200"><WifiOff size={14} className="inline mr-2"/> Offline Mode</div>}
 
-      {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-emerald-100 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
         <div className="w-full lg:max-w-[1920px] mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentScreen('dashboard')}>
@@ -170,7 +172,6 @@ const App: React.FC = () => {
 
              <button onClick={toggleTheme} className="p-2 text-gray-500">{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}</button>
              
-             {/* Hard Reset - ADMIN ONLY */}
              {isAdmin && (
                   <button 
                     onClick={() => {
@@ -232,7 +233,7 @@ const App: React.FC = () => {
               <StatsCard title="Tổng Banca" value={`${formatCompact(stats.totalBanca)} ₫`} color="green" icon={<Briefcase size={20} />} />
               <StatsCard title="% Banca" value={`${bancaPct}%`} color="orange" icon={<Percent size={20} />} />
               <StatsCard title="Thẻ (CRC)" value={stats.totalLoanCRC.toString()} color="blue" icon={<CreditCard size={20} />} />
-              <StatsCard title="ProApp" value={proApp} color="blue" icon={<BarChart2 size={20} />} />
+              <StatsCard title="ProApp" value={proAppDisplay} color="blue" icon={<BarChart2 size={20} />} />
               <StatsCard title="Case Size" value={`${formatCompact(caseSize)}`} color="green" icon={<PieChart size={20} />} />
               {dsaInfo ? <StatsCard title="Xếp Hạng" value={`#${dsaInfo.rank}/${dsaInfo.totalDSAs}`} color="green" icon={<Trophy size={20} />} /> : <StatsCard title="Hoạt Động" value={`${uniqueReportedCount}/${headcount}`} color="green" icon={<Users size={20} />} />}
               <StatsCard title="Tỷ lệ %" value={headcount > 0 ? `${((uniqueReportedCount / headcount) * 100).toFixed(0)}%` : '0%'} color="blue" icon={<Activity size={20} />} />
@@ -256,14 +257,35 @@ const App: React.FC = () => {
                         <option value="Chưa báo cáo">Chưa báo cáo</option>
                         <option value="Pending">Chờ duyệt</option>
                     </select>
-                    {['ADMIN', 'RSM'].includes(currentUser.role) && <select value={smFilter} onChange={e => setSmFilter(e.target.value)} className="text-sm bg-gray-50 border-gray-200 rounded-lg"><option value="all">Tất cả SM</option>{smOptions.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}</select>}
-                    {['ADMIN', 'RSM', 'SM'].includes(currentUser.role) && <select value={dssFilter} onChange={e => setDssFilter(e.target.value)} className="text-sm bg-gray-50 border-gray-200 rounded-lg"><option value="all">Tất cả DSS</option>{dssOptions.map(dss => <option key={dss.id} value={dss.name}>{dss.name}</option>)}</select>}
+                    
+                    {['ADMIN', 'RSM', 'SM'].includes(currentUser.role) && (
+                        <select 
+                            value={smFilter} 
+                            onChange={e => setSmFilter(e.target.value)} 
+                            className={`text-sm bg-gray-50 border-gray-200 rounded-lg ${currentUser.role === 'SM' ? 'opacity-70 pointer-events-none' : ''}`}
+                        >
+                            {currentUser.role !== 'SM' && <option value="all">Tất cả SM</option>}
+                            {smOptions.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}
+                        </select>
+                    )}
+
+                    {['ADMIN', 'RSM', 'SM', 'DSS'].includes(currentUser.role) && (
+                        <select 
+                            value={dssFilter} 
+                            onChange={e => setDssFilter(e.target.value)} 
+                            className={`text-sm bg-gray-50 border-gray-200 rounded-lg ${currentUser.role === 'DSS' ? 'opacity-70 pointer-events-none' : ''}`}
+                        >
+                            <option value="all">Tất cả DSS</option>
+                            {dssOptions.map(dss => <option key={dss.id} value={dss.name}>{dss.name}</option>)}
+                        </select>
+                    )}
+
                     <button onClick={refresh} className="p-1.5 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100"><RefreshCw size={16} className={isLoading ? 'animate-spin' : ''}/></button>
                </div>
                <div className="flex items-center gap-2">
                    <div className="bg-gray-100 p-1 rounded-lg flex text-xs">
-                      <button onClick={() => setViewMode('chart')} className={`px-3 py-1.5 rounded-md ${viewMode === 'chart' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-500'}`}>Biểu đồ</button>
-                      <button onClick={() => setViewMode('table')} className={`px-3 py-1.5 rounded-md ${viewMode === 'table' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-500'}`}>Bảng</button>
+                      <button onClick={() => setViewMode('chart')} className={`px-3 py-1.5 rounded-md ${viewMode === 'chart' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-50'}`}>Biểu đồ</button>
+                      <button onClick={() => setViewMode('table')} className={`px-3 py-1.5 rounded-md ${viewMode === 'table' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-50'}`}>Bảng</button>
                    </div>
                    {currentUser.role !== 'DSA' && <button onClick={handleExportCSV} className="p-2 text-gray-700 bg-white border border-gray-200 rounded-lg"><Download size={18} /></button>}
                    <button onClick={handleCreateNew} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md flex items-center"><Plus size={18} className="mr-1"/> Mới</button>
