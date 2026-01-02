@@ -3,7 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react';
 
 interface StatsCardProps {
   title: string;
-  value: string;
+  value: React.ReactNode; // Thay đổi từ string sang ReactNode
   trend?: string;
   icon?: React.ReactNode;
   color?: 'blue' | 'green' | 'red' | 'orange';
@@ -20,9 +20,11 @@ export const StatsCard: React.FC<StatsCardProps> = ({ title, value, trend, icon,
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-3 sm:p-4 md:p-6 flex flex-col justify-between hover:shadow-md transition-all duration-300">
       <div className="flex justify-between items-start gap-1">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[0.625rem] sm:text-xs md:text-sm font-bold text-gray-500 dark:text-gray-400 mb-0.5 truncate uppercase tracking-tighter">{title}</p>
-          <h3 className="text-xs sm:text-lg md:text-2xl font-black text-gray-900 dark:text-white truncate">{value}</h3>
+          <div className="text-xs sm:text-lg md:text-2xl font-black text-gray-900 dark:text-white truncate">
+            {value}
+          </div>
         </div>
         <div className={`p-1.5 md:p-2.5 rounded-lg ${colorClasses[color]} shadow-sm flex-shrink-0 ml-1`}>
           {icon || <Activity size={18} />}

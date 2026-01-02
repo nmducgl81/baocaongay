@@ -19,9 +19,9 @@ import { DataManagement } from './components/DataManagement';
 
 import { 
   Users, DollarSign, FileText, Plus, Loader2, LogOut, Download, BarChart2, 
-  Settings, CreditCard, Percent, Briefcase, RefreshCw, Trophy, BellRing, 
-  AlertTriangle, WifiOff, ShieldAlert, Calculator, BookOpen, Activity, 
-  Moon, Sun, Database, Sparkles, Lightbulb, PieChart, HelpCircle, FileCheck, AlignLeft, Archive
+  Settings, CreditCard, Briefcase, RefreshCw, Trophy, BellRing, 
+  AlertTriangle, WifiOff, Calculator, BookOpen, Activity, 
+  Moon, Sun, Database, Sparkles, Lightbulb, PieChart, HelpCircle, Archive, Percent
 } from 'lucide-react';
 
 const MOTIVATIONAL_QUOTES = [
@@ -121,9 +121,16 @@ const App: React.FC = () => {
   const isViewingToday = startDate === new Date().toISOString().split('T')[0] && endDate === startDate;
   
   const diffDays = Math.ceil(Math.abs(new Date(endDate).getTime() - new Date(startDate).getTime()) / (86400000)) + 1;
-  // CẬP NHẬT: ProApp hiển thị kèm tổng App
-  const proAppVal = (stats.totalApps / Math.max(1, diffDays) / Math.max(1, headcount)).toFixed(2);
-  const proAppDisplay = `${proAppVal} (${stats.totalApps} App)`;
+  
+  // TỐI ƯU HIỂN THỊ PROAPP: Làm tròn lên 1 chữ số thập phân và hiển thị 2 dòng
+  const rawProApp = stats.totalApps / Math.max(1, diffDays) / Math.max(1, headcount);
+  const proAppVal = (Math.ceil(rawProApp * 10) / 10).toFixed(1);
+  const proAppDisplay = (
+    <div className="flex flex-col leading-tight">
+       <span className="text-gray-900 dark:text-white">{proAppVal}</span>
+       <span className="text-[10px] md:text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5">App: {stats.totalApps}</span>
+    </div>
+  );
   
   const caseSize = (stats.totalLoans + stats.totalLoansFEOL) > 0 ? stats.totalVolume / (stats.totalLoans + stats.totalLoansFEOL) : 0;
   const bancaPct = stats.totalVolume > 0 ? ((stats.totalBanca / stats.totalVolume) * 100).toFixed(1) : '0';
@@ -283,9 +290,10 @@ const App: React.FC = () => {
                     <button onClick={refresh} className="p-1.5 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100"><RefreshCw size={16} className={isLoading ? 'animate-spin' : ''}/></button>
                </div>
                <div className="flex items-center gap-2">
-                   <div className="bg-gray-100 p-1 rounded-lg flex text-xs">
-                      <button onClick={() => setViewMode('chart')} className={`px-3 py-1.5 rounded-md ${viewMode === 'chart' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-50'}`}>Biểu đồ</button>
-                      <button onClick={() => setViewMode('table')} className={`px-3 py-1.5 rounded-md ${viewMode === 'table' ? 'bg-white shadow text-emerald-700 font-bold' : 'text-gray-50'}`}>Bảng</button>
+                   <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex text-xs shadow-inner">
+                      {/* TỐI ƯU MÀU CHỮ NÚT CHUYỂN ĐỔI: Sử dụng text-slate-500/600 cho trạng thái không hoạt động để tăng tương phản */}
+                      <button onClick={() => setViewMode('chart')} className={`px-4 py-2 rounded-md transition-all ${viewMode === 'chart' ? 'bg-white dark:bg-gray-600 shadow text-emerald-700 dark:text-emerald-300 font-bold' : 'text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700'}`}>Biểu đồ</button>
+                      <button onClick={() => setViewMode('table')} className={`px-4 py-2 rounded-md transition-all ${viewMode === 'table' ? 'bg-white dark:bg-gray-600 shadow text-emerald-700 dark:text-emerald-300 font-bold' : 'text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700'}`}>Bảng</button>
                    </div>
                    {currentUser.role !== 'DSA' && <button onClick={handleExportCSV} className="p-2 text-gray-700 bg-white border border-gray-200 rounded-lg"><Download size={18} /></button>}
                    <button onClick={handleCreateNew} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md flex items-center"><Plus size={18} className="mr-1"/> Mới</button>
