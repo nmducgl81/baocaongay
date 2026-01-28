@@ -195,6 +195,34 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   const isMissingView = statusFilter === 'Chưa báo cáo';
   const showActionColumn = isMissingView || canDeleteSummary;
 
+  // Calculate Subtotal Row
+  const totalSummary = useMemo(() => {
+    if (isMissingView || displayRecords.length === 0) return null;
+    return displayRecords.reduce((acc, r) => ({
+        directApp: acc.directApp + r.directApp,
+        directLoan: acc.directLoan + r.directLoan,
+        directAppCRC: acc.directAppCRC + (r.directAppCRC || 0),
+        directLoanCRC: acc.directLoanCRC + (r.directLoanCRC || 0),
+        directVolume: acc.directVolume + r.directVolume,
+        directBanca: acc.directBanca + r.directBanca,
+        directAppFEOL: acc.directAppFEOL + (r.directAppFEOL || 0),
+        directLoanFEOL: acc.directLoanFEOL + (r.directLoanFEOL || 0),
+        directVolumeFEOL: acc.directVolumeFEOL + (r.directVolumeFEOL || 0),
+        ctv: acc.ctv + r.ctv,
+        newCtv: acc.newCtv + r.newCtv,
+        flyers: acc.flyers + r.flyers,
+        dlk: acc.dlk + r.dlk,
+        newDlk: acc.newDlk + r.newDlk,
+        callsMonth: acc.callsMonth + r.callsMonth,
+        adSpend: acc.adSpend + r.adSpend,
+    }), {
+        directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
+        directVolume: 0, directBanca: 0,
+        directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
+        ctv: 0, newCtv: 0, flyers: 0, dlk: 0, newDlk: 0, callsMonth: 0, adSpend: 0
+    });
+  }, [displayRecords, isMissingView]);
+
   return (
     <div className="flex flex-col space-y-4 w-full">
       {/* SCOPE TABS & BREADCRUMB */}
@@ -356,6 +384,51 @@ export const SalesTable: React.FC<SalesTableProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+              
+              {/* SUBTOTAL ROW */}
+              {totalSummary && !isMissingView && (
+                <tr className="bg-yellow-50 dark:bg-yellow-900/30 font-bold text-xs md:text-sm border-b-2 border-yellow-200 dark:border-yellow-700/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors">
+                    {/* Sticky Column 1: Index */}
+                    <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-30 bg-yellow-100 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-200 w-[40px] max-w-[40px] min-w-[40px]">
+                        Σ
+                    </td>
+                    {visibleColumns.id && <td className="border border-gray-300 p-2 bg-yellow-50 dark:bg-yellow-900/20 text-center">-</td>}
+                    
+                    {/* Sticky Column 2: Name */}
+                    <td className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[40px] z-30 bg-yellow-100 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 shadow-lg w-[130px] min-w-[130px] max-w-[130px] md:w-[200px] md:min-w-[200px] md:max-w-[200px] truncate uppercase tracking-tight">
+                        TỔNG ({displayRecords.length})
+                    </td>
+
+                    {/* Hierarchy Spacers */}
+                    {(tableScope === 'dsa') && canShowDSS && visibleColumns.dss && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-yellow-50 dark:bg-yellow-900/20"></td>}
+                    {(tableScope === 'dsa') && canShowSM && visibleColumns.sm && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-yellow-50 dark:bg-yellow-900/20"></td>}
+                    {tableScope === 'dss' && canShowSM && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-yellow-50 dark:bg-yellow-900/20"></td>}
+
+                    {showActionColumn && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-yellow-50 dark:bg-yellow-900/20"></td>}
+
+                    {/* Metrics */}
+                    {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-emerald-800 dark:text-emerald-300">{totalSummary.directApp}</td>}
+                    {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-700 dark:text-red-300">{totalSummary.directLoan}</td>}
+                    {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300">{totalSummary.directAppCRC}</td>}
+                    {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300">{totalSummary.directLoanCRC}</td>}
+                    {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-800 dark:text-emerald-300">{formatCurrency(totalSummary.directVolume)}</td>}
+                    {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-blue-800 dark:text-blue-300">{formatCurrency(totalSummary.directBanca)}</td>}
+                    {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300">
+                        {totalSummary.directVolume > 0 ? ((totalSummary.directBanca / totalSummary.directVolume) * 100).toFixed(1) + '%' : '0%'}
+                    </td>}
+                    {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300">{totalSummary.directAppFEOL}</td>}
+                    {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300">{totalSummary.directLoanFEOL}</td>}
+                    {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-purple-800 dark:text-purple-300">{formatCurrency(totalSummary.directVolumeFEOL)}</td>}
+                    {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.ctv}</td>}
+                    {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.newCtv}</td>}
+                    {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{formatCurrency(totalSummary.flyers)}</td>}
+                    {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.dlk}</td>}
+                    {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.newDlk}</td>}
+                    {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.callsMonth}</td>}
+                    {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{formatCurrency(totalSummary.adSpend)}</td>}
+                </tr>
+              )}
+
               {displayRecords.length > 0 ? (
                 displayRecords.map((row, index) => {
                   const rolValue = row.directVolume > 0 ? (row.directBanca / row.directVolume) * 100 : 0;
