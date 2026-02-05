@@ -8,7 +8,7 @@ export const MOCK_USERS: User[] = [
       name: 'System Admin', 
       role: 'ADMIN',
       phoneNumber: '0909000111',
-      avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJJSURBVHgB7Zq9jxpBEIbnDVwcC5bM2LhIEomERMRObEQU/wUQKZK/I0KkCBG5CImIyI0tWzYSEuTGRoaNjc8yM/Z4z9zu9m2PZ6bao5WmZ7p7+ulhprt6Z87n81k1y+WyWq/X1WazqTabjZfVarWqFovFzD1e/X6/2u/3XjabTfX58+d/7nmx2+28rP1+Xz08PMy84/V8PquvX7962YfRaFSPj48z73g9HA7V9fW1l30YjUbV169fpx7yenz8/5XyYRiG1Xg8nnrH6/PzszgIfRiPx9VwOJytx4v3s9lscRD6MBqNqtFoNHOPVz4Iffj+/bs4tFwuh8uHl5eX4iB0Qj6E8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIh9+Pz5szi0XC6Hy4d3796Jg9AJ+RDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEPvQ7/eLQ8vlcrh8eP/+\/dQ9XqfTqXj50O12q+fn56l3vA6HQ3V1deVlH7rdbrVer2fe8Xp7e6uOxyMv+/D169f/3POi1Wp5Wfv9vvr06dPMO17/Ad7yJlb1Q/IwAAAAAElFTkSuQmCC'
+      avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJJSURBVHgB7Zq9jxpBEIbnDVwcC5bM2LhIEomERMRObEQU/wUQKZK/I0KkCBG5CImIyI0tWzYSEuTGRoaNjc8yM/Z4z9zu9m2PZ6bao5WmZ7p7+ulhprt6Z87n81k1y+WyWq/X1WazqTabjZfVarWqFovFzD1e/X6/2u/3XjabTfX58+d/7nmx2+28rP1+Xz08PMy84/V8PquvX7962YfRaFSPj48z73g9HA7V9fW1l30YjUbV169fpx7yenz8/5XyYRiG1Xg8nnrH6/PzszgIfRiPx9VwOJytx4v3s9lscRD6MBqNqtFoNHOPVz4Iffj+/bs4tFwuh8uHl5eX4iB0Qj6E8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIhPITyITyE8iE8hPIh9+Pz5szi0XC6Hy4d3796Jg9AJ+RDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEMqH8BDKh/AQyofwEPvQ7/eLQ8vlcrh8eP/+\/dQ9XqfTqXj50O12q+fn56l3vA6HQ3V1deVlH7rdbrVer2fe8Xp7e6uOxyMv+/D169f/3POi1Wp5Wfv9vvr06dPMO17/Ad7yJlb1Q/IwAAAAAElFTkSuQmCC'
   },
   { id: 'rsm1', username: 'rsm_hcm', name: 'NGUYỄN VĂN A (RSM)', role: 'RSM', parentId: 'admin', phoneNumber: '0912345678' },
   
@@ -60,6 +60,7 @@ export const generateMockData = (): SalesRecord[] => {
       directVolume: 0,
       directBanca: 0,
       directRol: '0.0%',
+      appSur: 0,
       onlineApp: 0,
       onlineVolume: 0,
       ctv: 5,
@@ -90,6 +91,7 @@ export const generateMockData = (): SalesRecord[] => {
       directVolume: 0,
       directBanca: 0,
       directRol: '0.0%',
+      appSur: 0,
       onlineApp: 0,
       onlineVolume: 0,
       ctv: 0,
@@ -120,6 +122,7 @@ export const generateMockData = (): SalesRecord[] => {
       directVolume: 0,
       directBanca: 0,
       directRol: '0.0%',
+      appSur: 0,
       onlineApp: 0,
       onlineVolume: 2,
       ctv: 7,
@@ -150,6 +153,7 @@ export const generateMockData = (): SalesRecord[] => {
       directVolume: 105000000,
       directBanca: 1800000,
       directRol: '1.7%',
+      appSur: 2,
       onlineApp: 0,
       onlineVolume: 0,
       ctv: 10,
@@ -180,6 +184,7 @@ export const generateMockData = (): SalesRecord[] => {
       directVolume: 27000000,
       directBanca: 600000,
       directRol: '2.2%',
+      appSur: 1,
       onlineApp: 1,
       onlineVolume: 0,
       ctv: 11,

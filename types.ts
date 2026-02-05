@@ -22,6 +22,7 @@ export interface SalesRecord {
   status: 'Đã báo cáo' | 'Chưa báo cáo';
   approvalStatus: 'Approved' | 'Pending' | 'Rejected'; // New field for approval workflow
   proofImage?: string; // Base64 string of the uploaded image
+  appSur: number; // Changed to Number for counting/calculation
 
   // Red Section: Direct Sales
   directApp: number;

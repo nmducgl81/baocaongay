@@ -88,6 +88,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     directAppFEOL: 0,
     directLoanFEOL: 0,
     directVolumeFEOL: 0,
+    appSur: 0,
     onlineApp: 0,
     onlineVolume: 0,
     ctv: 0,
@@ -345,6 +346,10 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
               <div className="bg-emerald-50 p-2 rounded border border-emerald-100 shadow-sm">
                 <label className="block text-xs font-bold text-emerald-800">Loan (Tiền mặt)</label>
                 <input type="number" name="directLoan" value={formData.directLoan} onChange={handleChange} className="mt-1 block w-full rounded-md border-emerald-200 border p-2 bg-white focus:border-emerald-500 focus:ring-emerald-500" />
+              </div>
+              <div className="col-span-2 bg-emerald-50 p-2 rounded border border-emerald-100 shadow-sm">
+                <label className="block text-xs font-bold text-emerald-800">App Sur (Chứng từ)</label>
+                <input type="number" name="appSur" value={formData.appSur} onChange={handleChange} className="mt-1 block w-full rounded-md border-emerald-200 border p-2 bg-white focus:border-emerald-500 focus:ring-emerald-500" />
               </div>
               <div className="bg-rose-50 p-2 rounded border border-rose-100 shadow-sm">
                 <label className="block text-xs font-bold text-rose-800">App CRC (Thẻ)</label>

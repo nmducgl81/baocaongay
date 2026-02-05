@@ -53,6 +53,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directAppFEOL: true,
         directLoanFEOL: true,
         directVolumeFEOL: true,
+        appSur: true, // New: Default visible
         ctv: true,
         newCtv: true,
         flyers: true,
@@ -148,6 +149,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
                 directVolume: 0, directBanca: 0, 
                 directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
+                appSur: 0, 
                 ctv: 0, newCtv: 0, flyers: 0, dlk: 0, newDlk: 0, callsMonth: 0, adSpend: 0,
                 _childIds: [],
                 missingCount: 0
@@ -168,6 +170,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         g.directAppFEOL += r.directAppFEOL;
         g.directLoanFEOL += r.directLoanFEOL;
         g.directVolumeFEOL += r.directVolumeFEOL;
+        g.appSur += (r.appSur || 0);
         g.ctv += r.ctv;
         g.newCtv += r.newCtv;
         g.flyers += r.flyers;
@@ -208,6 +211,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directAppFEOL: acc.directAppFEOL + (r.directAppFEOL || 0),
         directLoanFEOL: acc.directLoanFEOL + (r.directLoanFEOL || 0),
         directVolumeFEOL: acc.directVolumeFEOL + (r.directVolumeFEOL || 0),
+        appSur: acc.appSur + (r.appSur || 0),
         ctv: acc.ctv + r.ctv,
         newCtv: acc.newCtv + r.newCtv,
         flyers: acc.flyers + r.flyers,
@@ -219,6 +223,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
         directVolume: 0, directBanca: 0,
         directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
+        appSur: 0,
         ctv: 0, newCtv: 0, flyers: 0, dlk: 0, newDlk: 0, callsMonth: 0, adSpend: 0
     });
   }, [displayRecords, isMissingView]);
@@ -316,6 +321,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                         <div className="text-xs font-bold text-blue-600 uppercase mb-2 px-2">Sản phẩm</div>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directApp} onChange={() => toggleColumn('directApp')} className="mr-3"/><span>App (Tiền mặt)</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directLoan} onChange={() => toggleColumn('directLoan')} className="mr-3"/><span>Loan (Tiền mặt)</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.appSur} onChange={() => toggleColumn('appSur')} className="mr-3"/><span>App Sur (Chứng từ)</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directVolume} onChange={() => toggleColumn('directVolume')} className="mr-3"/><span>Volume</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directBanca} onChange={() => toggleColumn('directBanca')} className="mr-3"/><span>Banca</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directAppCRC} onChange={() => toggleColumn('directAppCRC')} className="mr-3"/><span>App CRC (Thẻ)</span></label>
@@ -364,6 +370,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     <>
                         {visibleColumns.directApp && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">App</th>}
                         {visibleColumns.directLoan && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">Loan</th>}
+                        {visibleColumns.appSur && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[60px]">App Sur</th>}
                         {visibleColumns.directAppCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">App CRC</th>}
                         {visibleColumns.directLoanCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">Loan CRC</th>}
                         {visibleColumns.directVolume && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Volume</th>}
@@ -409,6 +416,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     {/* Metrics */}
                     {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-emerald-800 dark:text-emerald-300">{totalSummary.directApp}</td>}
                     {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-700 dark:text-red-300">{totalSummary.directLoan}</td>}
+                    {visibleColumns.appSur && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-yellow-50 dark:bg-yellow-900/20 text-center font-bold text-gray-800 dark:text-gray-200">{totalSummary.appSur}</td>}
                     {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300">{totalSummary.directAppCRC}</td>}
                     {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300">{totalSummary.directLoanCRC}</td>}
                     {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-800 dark:text-emerald-300">{formatCurrency(totalSummary.directVolume)}</td>}
@@ -516,6 +524,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
                       {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.directApp}</td>}
                       {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-600 font-medium">{row.directLoan}</td>}
+                      {visibleColumns.appSur && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400 font-mono text-xs">{row.appSur || 0}</td>}
                       {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50">{row.directAppCRC || 0}</td>}
                       {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50 text-red-700 font-bold">{row.directLoanCRC || 0}</td>}
                       {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{formatCurrency(row.directVolume)}</td>}
