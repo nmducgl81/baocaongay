@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { SalesRecord, User } from '../types';
-import { X, Pencil, Search, Layout, ChevronDown, Trash2, AlertTriangle, ArrowUp, ArrowDown, Users, Map, User as UserIcon, ChevronRight, RotateCcw, CalendarOff } from 'lucide-react';
+import { X, Pencil, Search, Layout, ChevronDown, Trash2, AlertTriangle, ArrowUp, ArrowDown, Users, Map, User as UserIcon, ChevronRight, RotateCcw, CalendarOff, FileText } from 'lucide-react';
 
 interface SalesTableProps {
   data: SalesRecord[];
@@ -10,12 +10,13 @@ interface SalesTableProps {
   onDelete?: (recordId: string) => void;
   currentUser: User;
   statusFilter: string;
+  isLoading?: boolean; // New prop for skeleton loading
 }
 
 type TableScope = 'dsa' | 'dss' | 'sm';
 
 export const SalesTable: React.FC<SalesTableProps> = ({ 
-  data, onRowClick, onEdit, onApprove, onDelete, currentUser, statusFilter
+  data, onRowClick, onEdit, onApprove, onDelete, currentUser, statusFilter, isLoading = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showColumnSettings, setShowColumnSettings] = useState(false);
@@ -53,7 +54,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directAppFEOL: true,
         directLoanFEOL: true,
         directVolumeFEOL: true,
-        appSur: true, // New: Default visible
+        appSur: true, 
         ctv: true,
         newCtv: true,
         flyers: true,
@@ -95,6 +96,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   };
 
   const displayRecords = useMemo(() => {
+     if (isLoading) return []; // Return empty if loading to show skeleton
+
      // FILTER
      const term = searchTerm.toLowerCase();
      let records = data.filter(record => {
@@ -193,7 +196,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
      });
 
      return records;
-  }, [data, searchTerm, sortOrder, tableScope, internalFilter, statusFilter]);
+  }, [data, searchTerm, sortOrder, tableScope, internalFilter, statusFilter, isLoading]);
 
   const isMissingView = statusFilter === 'Chưa báo cáo';
   const showActionColumn = isMissingView || canDeleteSummary;
@@ -370,7 +373,10 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     <>
                         {visibleColumns.directApp && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">App</th>}
                         {visibleColumns.directLoan && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">Loan</th>}
-                        {visibleColumns.appSur && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[60px]">App Sur</th>}
+                        
+                        {/* UPDATE: Sync App Sur Style */}
+                        {visibleColumns.appSur && <th className="border border-gray-300 p-2 bg-teal-50 text-teal-900 min-w-[60px]">App Sur</th>}
+                        
                         {visibleColumns.directAppCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">App CRC</th>}
                         {visibleColumns.directLoanCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">Loan CRC</th>}
                         {visibleColumns.directVolume && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Volume</th>}
@@ -392,8 +398,23 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             </thead>
             <tbody className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
               
+              {/* SKELETON LOADING STATE */}
+              {isLoading && (
+                  Array.from({ length: 10 }).map((_, idx) => (
+                      <tr key={`skeleton-${idx}`} className="animate-pulse bg-white">
+                          <td className="border p-2"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
+                          <td className="border p-2"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
+                          {visibleColumns.directApp && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
+                          {visibleColumns.directLoan && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
+                          {visibleColumns.appSur && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
+                          {visibleColumns.directVolume && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
+                          <td colSpan={10} className="border p-2"></td>
+                      </tr>
+                  ))
+              )}
+
               {/* SUBTOTAL ROW */}
-              {totalSummary && !isMissingView && (
+              {totalSummary && !isMissingView && !isLoading && (
                 <tr className="bg-yellow-50 dark:bg-yellow-900/30 font-bold text-xs md:text-sm border-b-2 border-yellow-200 dark:border-yellow-700/50 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors">
                     {/* Sticky Column 1: Index */}
                     <td className="border border-gray-300 dark:border-gray-600 p-2 text-center sticky left-0 z-30 bg-yellow-100 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-200 w-[40px] max-w-[40px] min-w-[40px]">
@@ -413,31 +434,34 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
                     {showActionColumn && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-yellow-50 dark:bg-yellow-900/20"></td>}
 
-                    {/* Metrics */}
-                    {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-emerald-800 dark:text-emerald-300">{totalSummary.directApp}</td>}
-                    {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-700 dark:text-red-300">{totalSummary.directLoan}</td>}
-                    {visibleColumns.appSur && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-yellow-50 dark:bg-yellow-900/20 text-center font-bold text-gray-800 dark:text-gray-200">{totalSummary.appSur}</td>}
-                    {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300">{totalSummary.directAppCRC}</td>}
-                    {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300">{totalSummary.directLoanCRC}</td>}
-                    {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-800 dark:text-emerald-300">{formatCurrency(totalSummary.directVolume)}</td>}
-                    {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-blue-800 dark:text-blue-300">{formatCurrency(totalSummary.directBanca)}</td>}
-                    {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300">
+                    {/* Metrics - Added tabular-nums for alignment */}
+                    {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-emerald-800 dark:text-emerald-300 tabular-nums">{totalSummary.directApp}</td>}
+                    {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-700 dark:text-red-300 tabular-nums">{totalSummary.directLoan}</td>}
+                    
+                    {/* UPDATE: Sync App Sur Style in Subtotal */}
+                    {visibleColumns.appSur && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-teal-50/50 dark:bg-teal-900/20 text-center font-bold text-teal-800 dark:text-teal-300 tabular-nums">{totalSummary.appSur}</td>}
+                    
+                    {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300 tabular-nums">{totalSummary.directAppCRC}</td>}
+                    {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300 tabular-nums">{totalSummary.directLoanCRC}</td>}
+                    {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-800 dark:text-emerald-300 tabular-nums">{formatCurrency(totalSummary.directVolume)}</td>}
+                    {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-blue-800 dark:text-blue-300 tabular-nums">{formatCurrency(totalSummary.directBanca)}</td>}
+                    {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300 tabular-nums">
                         {totalSummary.directVolume > 0 ? ((totalSummary.directBanca / totalSummary.directVolume) * 100).toFixed(1) + '%' : '0%'}
                     </td>}
-                    {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300">{totalSummary.directAppFEOL}</td>}
-                    {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300">{totalSummary.directLoanFEOL}</td>}
-                    {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-purple-800 dark:text-purple-300">{formatCurrency(totalSummary.directVolumeFEOL)}</td>}
-                    {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.ctv}</td>}
-                    {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.newCtv}</td>}
-                    {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{formatCurrency(totalSummary.flyers)}</td>}
-                    {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.dlk}</td>}
-                    {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.newDlk}</td>}
-                    {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{totalSummary.callsMonth}</td>}
-                    {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{formatCurrency(totalSummary.adSpend)}</td>}
+                    {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300 tabular-nums">{totalSummary.directAppFEOL}</td>}
+                    {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300 tabular-nums">{totalSummary.directLoanFEOL}</td>}
+                    {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-purple-800 dark:text-purple-300 tabular-nums">{formatCurrency(totalSummary.directVolumeFEOL)}</td>}
+                    {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.ctv}</td>}
+                    {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.newCtv}</td>}
+                    {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{formatCurrency(totalSummary.flyers)}</td>}
+                    {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.dlk}</td>}
+                    {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.newDlk}</td>}
+                    {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.callsMonth}</td>}
+                    {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right tabular-nums">{formatCurrency(totalSummary.adSpend)}</td>}
                 </tr>
               )}
 
-              {displayRecords.length > 0 ? (
+              {displayRecords.length > 0 && !isLoading ? (
                 displayRecords.map((row, index) => {
                   const rolValue = row.directVolume > 0 ? (row.directBanca / row.directVolume) * 100 : 0;
                   const rolDisplay = rolValue.toFixed(1) + '%';
@@ -522,29 +546,33 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                           </td>
                       )}
 
-                      {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.directApp}</td>}
-                      {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-600 font-medium">{row.directLoan}</td>}
-                      {visibleColumns.appSur && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-gray-600 dark:text-gray-400 font-mono text-xs">{row.appSur || 0}</td>}
-                      {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50">{row.directAppCRC || 0}</td>}
-                      {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50 text-red-700 font-bold">{row.directLoanCRC || 0}</td>}
-                      {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{formatCurrency(row.directVolume)}</td>}
-                      {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-600">{formatCurrency(row.directBanca)}</td>}
-                      {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center font-bold text-blue-600">{rolDisplay}</td>}
-                      {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50">{row.directAppFEOL || 0}</td>}
-                      {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50 font-bold">{row.directLoanFEOL || 0}</td>}
-                      {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right bg-purple-50/50">{formatCurrency(row.directVolumeFEOL)}</td>}
-                      {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.ctv}</td>}
-                      {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.newCtv}</td>}
-                      {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{formatCurrency(row.flyers)}</td>}
-                      {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.dlk}</td>}
-                      {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.newDlk}</td>}
-                      {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">{row.callsMonth}</td>}
-                      {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{formatCurrency(row.adSpend)}</td>}
+                      {/* Metrics: Added tabular-nums for vertical alignment */}
+                      {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.directApp}</td>}
+                      {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-600 font-medium tabular-nums">{row.directLoan}</td>}
+                      
+                      {/* UPDATE: Sync App Sur Style Body */}
+                      {visibleColumns.appSur && <td className={`border border-gray-300 dark:border-gray-600 p-2 text-center font-bold tabular-nums ${row.appSur > 0 ? 'text-teal-700' : 'text-gray-400 font-normal'}`}>{row.appSur || 0}</td>}
+                      
+                      {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50 tabular-nums">{row.directAppCRC || 0}</td>}
+                      {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50 text-red-700 font-bold tabular-nums">{row.directLoanCRC || 0}</td>}
+                      {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right tabular-nums">{formatCurrency(row.directVolume)}</td>}
+                      {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-600 tabular-nums">{formatCurrency(row.directBanca)}</td>}
+                      {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center font-bold text-blue-600 tabular-nums">{rolDisplay}</td>}
+                      {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50 tabular-nums">{row.directAppFEOL || 0}</td>}
+                      {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50 font-bold tabular-nums">{row.directLoanFEOL || 0}</td>}
+                      {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right bg-purple-50/50 tabular-nums">{formatCurrency(row.directVolumeFEOL)}</td>}
+                      {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.ctv}</td>}
+                      {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.newCtv}</td>}
+                      {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{formatCurrency(row.flyers)}</td>}
+                      {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.dlk}</td>}
+                      {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.newDlk}</td>}
+                      {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.callsMonth}</td>}
+                      {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right tabular-nums">{formatCurrency(row.adSpend)}</td>}
                     </tr>
                   );
                 })
               ) : (
-                <tr><td colSpan={30} className="text-center p-8 text-gray-500 italic">Không tìm thấy dữ liệu</td></tr>
+                !isLoading && <tr><td colSpan={30} className="text-center p-8 text-gray-500 italic">Không tìm thấy dữ liệu</td></tr>
               )}
             </tbody>
           </table>

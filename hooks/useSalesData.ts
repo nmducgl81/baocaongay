@@ -8,8 +8,14 @@ const SALES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export const useSalesData = (startDate: string, endDate: string) => {
   const [allData, setAllData] = useState<SalesRecord[]>(() => {
-    const saved = localStorage.getItem('sales_records');
-    return saved ? JSON.parse(saved) : [];
+    try {
+        const saved = localStorage.getItem('sales_records');
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        console.warn("Corrupted sales data in localStorage, resetting.", e);
+        localStorage.removeItem('sales_records');
+        return [];
+    }
   });
   
   const [isLoading, setIsLoading] = useState(false);

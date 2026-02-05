@@ -303,7 +303,7 @@ const App: React.FC = () => {
             {viewMode === 'chart' ? (
                <DashboardCharts data={filteredData} globalData={allData.filter(r => r.reportDate >= startDate && r.reportDate <= endDate)} currentUser={currentUser} users={users} onDateChange={handleDateChange} startDate={startDate} endDate={endDate} />
             ) : (
-               <SalesTable data={filteredData} onRowClick={handleSelectDSA} onEdit={handleEditRecord} onApprove={handleApproveRecord} onDelete={deleteRecord} currentUser={currentUser} statusFilter={statusFilter} />
+               <SalesTable data={filteredData} onRowClick={handleSelectDSA} onEdit={handleEditRecord} onApprove={handleApproveRecord} onDelete={deleteRecord} currentUser={currentUser} statusFilter={statusFilter} isLoading={isLoading} />
             )}
           </>
         )}

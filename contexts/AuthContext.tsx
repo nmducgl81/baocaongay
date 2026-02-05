@@ -21,17 +21,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Initialize State from LocalStorage
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('currentUser');
-    return saved ? JSON.parse(saved) : null;
-  });
+// Helper for safe parsing
+const safeJsonParse = <T,>(key: string, fallback: T): T => {
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : fallback;
+    } catch (e) {
+        console.warn(`Error parsing ${key} from localStorage, resetting.`, e);
+        localStorage.removeItem(key);
+        return fallback;
+    }
+};
 
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('app_users');
-    return saved ? JSON.parse(saved) : MOCK_USERS;
-  });
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // 1. Initialize State from LocalStorage SAFELY
+  const [currentUser, setCurrentUser] = useState<User | null>(() => safeJsonParse<User | null>('currentUser', null));
+
+  const [users, setUsers] = useState<User[]>(() => safeJsonParse<User[]>('app_users', MOCK_USERS));
 
   // 2. Fetch Users from Firebase (Background Sync)
   useEffect(() => {
