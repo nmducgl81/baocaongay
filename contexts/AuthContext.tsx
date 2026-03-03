@@ -3,7 +3,7 @@ import { User } from '../types';
 import { MOCK_USERS } from '../services/mockData';
 import { authService } from '../services/authService';
 import { db, ensureAuth } from '../services/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -18,8 +18,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // Helper for safe parsing
 const safeJsonParse = <T,>(key: string, fallback: T): T => {
@@ -39,45 +37,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [users, setUsers] = useState<User[]>(() => safeJsonParse<User[]>('app_users', MOCK_USERS));
 
-  // 2. Fetch Users from Firebase (Background Sync)
+  // 2. Real-time Sync with Firebase
   useEffect(() => {
-    const fetchUsers = async () => {
-        const now = Date.now();
-        const lastFetch = Number(localStorage.getItem('ts_users') || 0);
-        
-        // Cache Strategy: Only fetch if expired or empty
-        if (users.length > 5 && now - lastFetch < CACHE_TTL) return;
+    let unsubscribe: () => void;
 
+    const setupSync = async () => {
         if (!db) return; // Offline fallback
 
         try {
             const authResult = await ensureAuth();
             if (authResult.success) {
-                console.log("☁️ Context: Fetching Users...");
-                const snapshot = await getDocs(collection(db, "users"));
-                if (!snapshot.empty) {
+                console.log("☁️ Context: Setting up Real-time Sync...");
+                
+                unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
                     const remoteUsers = snapshot.docs.map(d => d.data() as User);
-                    setUsers(remoteUsers);
-                    localStorage.setItem('app_users', JSON.stringify(remoteUsers));
-                    localStorage.setItem('ts_users', now.toString());
                     
+                    // Update State immediately for Real-time UI
+                    setUsers(remoteUsers);
+
+                    // Non-blocking storage update to prevent UI freeze
+                    setTimeout(() => {
+                        localStorage.setItem('app_users', JSON.stringify(remoteUsers));
+                    }, 0);
+
                     // Sync current user if data changed
                     if (currentUser) {
                         const updatedSelf = remoteUsers.find(u => u.id === currentUser.id);
-                        if (updatedSelf) {
+                        // Simple check to avoid loop, checking specific fields or just ID/Role/Name could be lighter
+                        // but for single user object, JSON stringify is acceptable compared to full list
+                        if (updatedSelf && JSON.stringify(updatedSelf) !== JSON.stringify(currentUser)) {
                             setCurrentUser(updatedSelf);
-                            localStorage.setItem('currentUser', JSON.stringify(updatedSelf));
+                            setTimeout(() => {
+                                localStorage.setItem('currentUser', JSON.stringify(updatedSelf));
+                            }, 0);
                         }
                     }
-                }
+                }, (error) => {
+                    console.error("❌ Firestore Sync Error:", error);
+                });
             }
         } catch (e) {
-            console.warn("AuthContext Fetch Error:", e);
+            console.warn("AuthContext Sync Setup Error:", e);
         }
     };
 
-    fetchUsers();
-  }, []);
+    setupSync();
+
+    return () => {
+        if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser]); // Re-run if currentUser changes to ensure sync is active (though mostly stable)
 
   // 3. Actions
   const login = async (username: string, password: string) => {
@@ -99,47 +108,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addUser = async (u: User | User[]) => {
       const list = Array.isArray(u) ? u : [u];
-      const updated = [...users, ...list];
-      setUsers(updated);
-      localStorage.setItem('app_users', JSON.stringify(updated));
+      
+      // Optimistic update
+      setUsers(prev => {
+          const updated = [...prev];
+          list.forEach(newUser => {
+              if (!updated.find(existing => existing.id === newUser.id)) {
+                  updated.push(newUser);
+              }
+          });
+          localStorage.setItem('app_users', JSON.stringify(updated));
+          return updated;
+      });
       
       if (db) {
           try {
               const batch = writeBatch(db);
               list.forEach(item => batch.set(doc(db!, "users", item.id), sanitize(item)));
               await batch.commit();
-          } catch(e) { console.warn("Offline Add User"); }
+          } catch(e) { console.warn("Offline Add User Error", e); }
       }
   };
 
   const updateUser = async (u: User) => {
-      const updated = users.map(item => item.id === u.id ? u : item);
-      setUsers(updated);
-      localStorage.setItem('app_users', JSON.stringify(updated));
+      // Optimistic update
+      setUsers(prev => {
+          const updated = prev.map(item => item.id === u.id ? u : item);
+          localStorage.setItem('app_users', JSON.stringify(updated));
+          return updated;
+      });
+
       if (currentUser?.id === u.id) {
           setCurrentUser(u);
           localStorage.setItem('currentUser', JSON.stringify(u));
       }
-      if (db) try { await setDoc(doc(db, "users", u.id), sanitize(u)); } catch(e) {}
+      if (db) try { await setDoc(doc(db, "users", u.id), sanitize(u)); } catch(e) { console.warn("Offline Update User Error", e); }
   };
 
   const deleteUser = async (id: string) => {
-      const updated = users.filter(u => u.id !== id);
-      setUsers(updated);
-      localStorage.setItem('app_users', JSON.stringify(updated));
-      if (db) try { await deleteDoc(doc(db, "users", id)); } catch(e) {}
+      // Optimistic update
+      setUsers(prev => {
+          const updated = prev.filter(u => u.id !== id);
+          localStorage.setItem('app_users', JSON.stringify(updated));
+          return updated;
+      });
+
+      if (db) try { await deleteDoc(doc(db, "users", id)); } catch(e) { console.warn("Offline Delete User Error", e); }
   };
 
   const bulkDeleteUsers = async (ids: string[]) => {
-      const updated = users.filter(u => !ids.includes(u.id));
-      setUsers(updated);
-      localStorage.setItem('app_users', JSON.stringify(updated));
+      // Optimistic update
+      setUsers(prev => {
+          const updated = prev.filter(u => !ids.includes(u.id));
+          localStorage.setItem('app_users', JSON.stringify(updated));
+          return updated;
+      });
+
       if (db) {
           try {
               const batch = writeBatch(db);
               ids.forEach(id => batch.delete(doc(db!, "users", id)));
               await batch.commit();
-          } catch(e) {}
+          } catch(e) { console.warn("Offline Bulk Delete Error", e); }
       }
   };
 
