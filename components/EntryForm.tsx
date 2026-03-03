@@ -91,13 +91,14 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     appSur: 0,
     onlineApp: 0,
     onlineVolume: 0,
-    ctv: 0,
+    customerCare: 0,
+    messageNewCust: 0,
+    friendZalo: 0,
+    postSocial: 0,
+    postGroup: 0,
+    marketActivity: 0,
+    ctvCare: 0,
     newCtv: 0,
-    dlk: 0,
-    newDlk: 0,
-    flyers: 0,
-    callsMonth: 0,
-    adSpend: 0,
     approvalStatus: 'Approved'
   };
 
@@ -351,23 +352,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
                 <label className="block text-xs font-bold text-emerald-800">App Sur (Chứng từ)</label>
                 <input type="number" name="appSur" value={formData.appSur} onChange={handleChange} className="mt-1 block w-full rounded-md border-emerald-200 border p-2 bg-white focus:border-emerald-500 focus:ring-emerald-500" />
               </div>
-              <div className="bg-rose-50 p-2 rounded border border-rose-100 shadow-sm">
-                <label className="block text-xs font-bold text-rose-800">App CRC (Thẻ)</label>
-                <input type="number" name="directAppCRC" value={formData.directAppCRC} onChange={handleChange} className="mt-1 block w-full rounded-md border-rose-200 border p-2 bg-white focus:border-rose-500 focus:ring-rose-500" />
-              </div>
-              <div className="bg-rose-50 p-2 rounded border border-rose-100 shadow-sm">
-                <label className="block text-xs font-bold text-rose-800">Loan CRC (Thẻ)</label>
-                <input type="number" name="directLoanCRC" value={formData.directLoanCRC} onChange={handleChange} className="mt-1 block w-full rounded-md border-rose-200 border p-2 bg-white focus:border-rose-500 focus:ring-rose-500" />
-              </div>
-              <div className="bg-purple-50 p-2 rounded border border-purple-100 shadow-sm">
-                <label className="block text-xs font-bold text-purple-800">App FEOL</label>
-                <input type="number" name="directAppFEOL" value={formData.directAppFEOL} onChange={handleChange} className="mt-1 block w-full rounded-md border-purple-200 border p-2 bg-white focus:border-purple-500 focus:ring-purple-500" />
-              </div>
-              <div className="bg-purple-50 p-2 rounded border border-purple-100 shadow-sm">
-                <label className="block text-xs font-bold text-purple-800">Loan FEOL</label>
-                <input type="number" name="directLoanFEOL" value={formData.directLoanFEOL} onChange={handleChange} className="mt-1 block w-full rounded-md border-purple-200 border p-2 bg-white focus:border-purple-500 focus:ring-purple-500" />
-              </div>
-              <div className="col-span-2"><CurrencyInputWithShortcuts label="Volume FEOL (VND)" name="directVolumeFEOL" value={formData.directVolumeFEOL} colorClass="bg-purple-50 border-purple-100" focusClass="focus:border-purple-500 focus:ring-purple-500" /></div>
               <div className="col-span-1"><CurrencyInputWithShortcuts label="Volume (VND)" name="directVolume" value={formData.directVolume} colorClass="bg-teal-50 border-teal-100" focusClass="focus:border-teal-500 focus:ring-teal-500" /></div>
               <div className="col-span-1"><CurrencyInputWithShortcuts label="Banca (VND)" name="directBanca" value={formData.directBanca} colorClass="bg-teal-50 border-teal-100" focusClass="focus:border-teal-500 focus:ring-teal-500" /></div>
             </div>
@@ -377,30 +361,45 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
             <h3 className="text-sm font-bold text-amber-700 uppercase border-b border-amber-200 pb-1">Hoạt động phát triển</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">Tổng CTV</label>
-                 <input type="number" name="ctv" value={formData.ctv} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+                 <label className="block text-xs font-bold text-amber-800">Chăm sóc KH</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 10-15 KH)</div>
+                 <input type="number" name="customerCare" value={formData.customerCare} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">CTV Mới</label>
+                 <label className="block text-xs font-bold text-amber-800">Nhắn tin tìm KH mới</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: &gt;= 30 TIN)</div>
+                 <input type="number" name="messageNewCust" value={formData.messageNewCust} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+              </div>
+              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
+                 <label className="block text-xs font-bold text-amber-800">Kết bạn Zalo/FB</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 2 bạn)</div>
+                 <input type="number" name="friendZalo" value={formData.friendZalo} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+              </div>
+              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
+                 <label className="block text-xs font-bold text-amber-800">Đăng bài tìm KH</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 2 bài - Zalo/FB/Tiktok)</div>
+                 <input type="number" name="postSocial" value={formData.postSocial} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+              </div>
+              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
+                 <label className="block text-xs font-bold text-amber-800">Đăng bài hội nhóm</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 1 nhóm)</div>
+                 <input type="number" name="postGroup" value={formData.postGroup} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+              </div>
+              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
+                 <label className="block text-xs font-bold text-amber-800">Hoạt động thị trường</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 1 lần/ngày)</div>
+                 <input type="number" name="marketActivity" value={formData.marketActivity} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+              </div>
+              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
+                 <label className="block text-xs font-bold text-amber-800">Gọi/nhắn CTV cũ</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: &gt;= 5 CTV)</div>
+                 <input type="number" name="ctvCare" value={formData.ctvCare} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+              </div>
+              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
+                 <label className="block text-xs font-bold text-amber-800">Tuyển & trao đổi CTV mới</label>
+                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 1-2 CTV)</div>
                  <input type="number" name="newCtv" value={formData.newCtv} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
-              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">Tổng ĐLK</label>
-                 <input type="number" name="dlk" value={formData.dlk} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
-              </div>
-              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">ĐLK Mới</label>
-                 <input type="number" name="newDlk" value={formData.newDlk} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
-              </div>
-              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                <label className="block text-xs font-bold text-amber-800">Cuộc gọi / Tháng</label>
-                <input type="number" name="callsMonth" value={formData.callsMonth} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
-              </div>
-              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                <label className="block text-xs font-bold text-amber-800">Tờ rơi</label>
-                <input type="text" name="flyers" value={formatValue(formData.flyers)} onChange={handleCurrencyChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white font-medium focus:border-amber-500 focus:ring-amber-500" />
-              </div>
-              <div className="col-span-2"><CurrencyInputWithShortcuts label="Chi phí QC (VND)" name="adSpend" value={formData.adSpend} colorClass="bg-amber-50 border-amber-100" focusClass="focus:border-amber-500 focus:ring-amber-500" /></div>
             </div>
           </div>
 

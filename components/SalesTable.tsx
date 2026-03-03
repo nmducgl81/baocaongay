@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { SalesRecord, User } from '../types';
-import { X, Pencil, Search, Layout, ChevronDown, Trash2, AlertTriangle, ArrowUp, ArrowDown, Users, Map, User as UserIcon, ChevronRight, RotateCcw, CalendarOff, FileText } from 'lucide-react';
+import { X, Pencil, Search, Layout, ChevronDown, Trash2, AlertTriangle, ArrowUp, ArrowDown, Users, Map, User as UserIcon, ChevronRight, RotateCcw, CalendarOff, FileText, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface SalesTableProps {
   data: SalesRecord[];
@@ -33,6 +34,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   // Permission checks
   const canShowDSS = !['DSA'].includes(currentUser.role);
   const canShowSM = !['DSA', 'DSS', 'SM'].includes(currentUser.role);
+  const canExport = ['DSS', 'SM', 'RSM', 'ADMIN'].includes(currentUser.role);
   
   // Hide Search and Column Settings for DSA
   const showToolbar = currentUser.role !== 'DSA';
@@ -47,21 +49,17 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directApp: true,
         directLoan: true,
         directVolume: true,
-        directAppCRC: true,
-        directLoanCRC: true,
         directBanca: true,
         directRol: true,
-        directAppFEOL: true,
-        directLoanFEOL: true,
-        directVolumeFEOL: true,
         appSur: true, 
-        ctv: true,
-        newCtv: true,
-        flyers: true,
-        dlk: true,
-        newDlk: true,
-        calls: true,
-        adSpend: true
+        customerCare: true,
+        messageNewCust: true,
+        friendZalo: true,
+        postSocial: true,
+        postGroup: true,
+        marketActivity: true,
+        ctvCare: true,
+        newCtv: true
   });
 
   const toggleColumn = (key: keyof typeof visibleColumns) => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
@@ -153,7 +151,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 directVolume: 0, directBanca: 0, 
                 directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
                 appSur: 0, 
-                ctv: 0, newCtv: 0, flyers: 0, dlk: 0, newDlk: 0, callsMonth: 0, adSpend: 0,
+                customerCare: 0, messageNewCust: 0, friendZalo: 0, postSocial: 0,
+                postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0,
                 _childIds: [],
                 missingCount: 0
             };
@@ -174,13 +173,14 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         g.directLoanFEOL += r.directLoanFEOL;
         g.directVolumeFEOL += r.directVolumeFEOL;
         g.appSur += (r.appSur || 0);
-        g.ctv += r.ctv;
+        g.customerCare += (r.customerCare || 0);
+        g.messageNewCust += (r.messageNewCust || 0);
+        g.friendZalo += (r.friendZalo || 0);
+        g.postSocial += (r.postSocial || 0);
+        g.postGroup += (r.postGroup || 0);
+        g.marketActivity += (r.marketActivity || 0);
+        g.ctvCare += (r.ctvCare || 0);
         g.newCtv += r.newCtv;
-        g.flyers += r.flyers;
-        g.dlk += r.dlk;
-        g.newDlk += r.newDlk;
-        g.callsMonth += r.callsMonth;
-        g.adSpend += r.adSpend;
         if (!r.id.startsWith('virt-')) {
             g._childIds.push(r.id);
         }
@@ -215,21 +215,63 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directLoanFEOL: acc.directLoanFEOL + (r.directLoanFEOL || 0),
         directVolumeFEOL: acc.directVolumeFEOL + (r.directVolumeFEOL || 0),
         appSur: acc.appSur + (r.appSur || 0),
-        ctv: acc.ctv + r.ctv,
+        customerCare: acc.customerCare + (r.customerCare || 0),
+        messageNewCust: acc.messageNewCust + (r.messageNewCust || 0),
+        friendZalo: acc.friendZalo + (r.friendZalo || 0),
+        postSocial: acc.postSocial + (r.postSocial || 0),
+        postGroup: acc.postGroup + (r.postGroup || 0),
+        marketActivity: acc.marketActivity + (r.marketActivity || 0),
+        ctvCare: acc.ctvCare + (r.ctvCare || 0),
         newCtv: acc.newCtv + r.newCtv,
-        flyers: acc.flyers + r.flyers,
-        dlk: acc.dlk + r.dlk,
-        newDlk: acc.newDlk + r.newDlk,
-        callsMonth: acc.callsMonth + r.callsMonth,
-        adSpend: acc.adSpend + r.adSpend,
     }), {
         directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
         directVolume: 0, directBanca: 0,
         directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
         appSur: 0,
-        ctv: 0, newCtv: 0, flyers: 0, dlk: 0, newDlk: 0, callsMonth: 0, adSpend: 0
+        customerCare: 0, messageNewCust: 0, friendZalo: 0, postSocial: 0,
+        postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0
     });
   }, [displayRecords, isMissingView]);
+
+  const handleExportExcel = () => {
+    // Flatten data for export
+    const exportData = displayRecords.map((record, index) => {
+        const rolValue = record.directVolume > 0 ? (record.directBanca / record.directVolume) * 100 : 0;
+        const rolDisplay = rolValue.toFixed(1) + '%';
+        
+        return {
+            'STT': index + 1,
+            'Tên': record.name,
+            'Mã DSA': record.dsaCode !== 'SUMMARY' ? record.dsaCode : '',
+            'DSS': record.dss,
+            'Khu Vực (SM)': record.smName,
+            'App (Tiền mặt)': record.directApp,
+            'Loan (Tiền mặt)': record.directLoan,
+            'App Sur': record.appSur,
+            'Volume': record.directVolume,
+            'Banca': record.directBanca,
+            'Rol (%)': rolDisplay,
+            'Chăm sóc KH': record.customerCare,
+            'Nhắn tin tìm KH': record.messageNewCust,
+            'Kết bạn Zalo/FB': record.friendZalo,
+            'Đăng bài tìm KH': record.postSocial,
+            'Đăng bài hội nhóm': record.postGroup,
+            'Hoạt động thị trường': record.marketActivity,
+            'Gọi/nhắn CTV cũ': record.ctvCare,
+            'Tuyển & trao đổi CTV mới': record.newCtv
+        };
+    });
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Báo cáo");
+
+    // Generate Excel file
+    XLSX.writeFile(wb, `Bao_cao_Sale_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   return (
     <div className="flex flex-col space-y-4 w-full">
@@ -302,6 +344,16 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     </button>
                 )}
 
+                {canExport && !isMissingView && (
+                    <button 
+                        onClick={handleExportExcel}
+                        className="flex items-center space-x-2 px-3 py-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all text-sm font-bold shadow-sm whitespace-nowrap"
+                    >
+                        <Download size={18} />
+                        <span className="hidden md:inline">Xuất Excel</span>
+                    </button>
+                )}
+
                 {canConfigureColumns && !isMissingView && (
                 <div className="relative">
                     <button onClick={() => setShowColumnSettings(!showColumnSettings)} className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg border transition-all text-sm font-bold ${showColumnSettings ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white dark:bg-gray-800 border-gray-200 text-gray-600'}`}>
@@ -327,8 +379,17 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.appSur} onChange={() => toggleColumn('appSur')} className="mr-3"/><span>App Sur (Chứng từ)</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directVolume} onChange={() => toggleColumn('directVolume')} className="mr-3"/><span>Volume</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directBanca} onChange={() => toggleColumn('directBanca')} className="mr-3"/><span>Banca</span></label>
-                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directAppCRC} onChange={() => toggleColumn('directAppCRC')} className="mr-3"/><span>App CRC (Thẻ)</span></label>
-                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directLoanCRC} onChange={() => toggleColumn('directLoanCRC')} className="mr-3"/><span>Loan CRC</span></label>
+                                    </div>
+                                    <div className="mb-3">
+                                        <div className="text-xs font-bold text-amber-600 uppercase mb-2 px-2">Hoạt động</div>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.customerCare} onChange={() => toggleColumn('customerCare')} className="mr-3"/><span>Chăm sóc KH</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.messageNewCust} onChange={() => toggleColumn('messageNewCust')} className="mr-3"/><span>Nhắn tin tìm KH</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.friendZalo} onChange={() => toggleColumn('friendZalo')} className="mr-3"/><span>Kết bạn Zalo/FB</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.postSocial} onChange={() => toggleColumn('postSocial')} className="mr-3"/><span>Đăng bài tìm KH</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.postGroup} onChange={() => toggleColumn('postGroup')} className="mr-3"/><span>Đăng bài hội nhóm</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.marketActivity} onChange={() => toggleColumn('marketActivity')} className="mr-3"/><span>Hoạt động thị trường</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.ctvCare} onChange={() => toggleColumn('ctvCare')} className="mr-3"/><span>Gọi/nhắn CTV cũ</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.newCtv} onChange={() => toggleColumn('newCtv')} className="mr-3"/><span>Tuyển & trao đổi CTV mới</span></label>
                                     </div>
                                 </div>
                             </div>
@@ -377,21 +438,58 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                         {/* UPDATE: Sync App Sur Style */}
                         {visibleColumns.appSur && <th className="border border-gray-300 p-2 bg-teal-50 text-teal-900 min-w-[60px]">App Sur</th>}
                         
-                        {visibleColumns.directAppCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">App CRC</th>}
-                        {visibleColumns.directLoanCRC && <th className="border border-gray-300 p-2 bg-red-50 text-red-900 font-bold min-w-[50px]">Loan CRC</th>}
                         {visibleColumns.directVolume && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Volume</th>}
                         {visibleColumns.directBanca && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Banca</th>}
                         {visibleColumns.directRol && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">Rol (%)</th>}
-                        {visibleColumns.directAppFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[50px]">App FEOL</th>}
-                        {visibleColumns.directLoanFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[50px]">Loan FEOL</th>}
-                        {visibleColumns.directVolumeFEOL && <th className="border border-gray-300 p-2 bg-purple-50 text-purple-900 font-bold min-w-[90px]">Vol FEOL</th>}
-                        {visibleColumns.ctv && <th className="border border-gray-300 p-2 bg-orange-50 text-orange-900 min-w-[50px]">CTV</th>}
-                        {visibleColumns.newCtv && <th className="border border-gray-300 p-2 bg-orange-50 text-orange-900 min-w-[50px]">CTV Mới</th>}
-                        {visibleColumns.flyers && <th className="border border-gray-300 p-2">Tờ rơi</th>}
-                        {visibleColumns.dlk && <th className="border border-gray-300 p-2">ĐLK</th>}
-                        {visibleColumns.newDlk && <th className="border border-gray-300 p-2">ĐLK Mới</th>}
-                        {visibleColumns.calls && <th className="border border-gray-300 p-2">Cuộc Gọi</th>}
-                        {visibleColumns.adSpend && <th className="border border-gray-300 p-2 text-right">Chi phí QC</th>}
+                        
+                        {visibleColumns.customerCare && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
+                                <div>Chăm sóc KH</div>
+                                <div className="text-[9px] font-normal opacity-70">(10-15 KH)</div>
+                            </th>
+                        )}
+                        {visibleColumns.messageNewCust && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
+                                <div>Nhắn tin tìm KH</div>
+                                <div className="text-[9px] font-normal opacity-70">(&gt;= 30 TIN)</div>
+                            </th>
+                        )}
+                        {visibleColumns.friendZalo && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[70px]">
+                                <div>Kết bạn Zalo/FB</div>
+                                <div className="text-[9px] font-normal opacity-70">(2 bạn)</div>
+                            </th>
+                        )}
+                        {visibleColumns.postSocial && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
+                                <div>Đăng bài tìm KH</div>
+                                <div className="text-[9px] font-normal opacity-70">(2 bài)</div>
+                            </th>
+                        )}
+                        {visibleColumns.postGroup && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[70px]">
+                                <div>Đăng bài hội nhóm</div>
+                                <div className="text-[9px] font-normal opacity-70">(1 nhóm)</div>
+                            </th>
+                        )}
+                        {visibleColumns.marketActivity && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
+                                <div>Hoạt động thị trường</div>
+                                <div className="text-[9px] font-normal opacity-70">(1 lần/ngày)</div>
+                            </th>
+                        )}
+                        {visibleColumns.ctvCare && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
+                                <div>Gọi/nhắn CTV cũ</div>
+                                <div className="text-[9px] font-normal opacity-70">(&gt;= 5 CTV)</div>
+                            </th>
+                        )}
+                        {visibleColumns.newCtv && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
+                                <div>Tuyển & trao đổi CTV mới</div>
+                                <div className="text-[9px] font-normal opacity-70">(1-2 CTV)</div>
+                            </th>
+                        )}
                     </>
                 )}
               </tr>
@@ -441,23 +539,20 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     {/* UPDATE: Sync App Sur Style in Subtotal */}
                     {visibleColumns.appSur && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-teal-50/50 dark:bg-teal-900/20 text-center font-bold text-teal-800 dark:text-teal-300 tabular-nums">{totalSummary.appSur}</td>}
                     
-                    {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300 tabular-nums">{totalSummary.directAppCRC}</td>}
-                    {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-800 dark:text-red-300 tabular-nums">{totalSummary.directLoanCRC}</td>}
                     {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-800 dark:text-emerald-300 tabular-nums">{formatCurrency(totalSummary.directVolume)}</td>}
                     {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-blue-800 dark:text-blue-300 tabular-nums">{formatCurrency(totalSummary.directBanca)}</td>}
                     {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300 tabular-nums">
                         {totalSummary.directVolume > 0 ? ((totalSummary.directBanca / totalSummary.directVolume) * 100).toFixed(1) + '%' : '0%'}
                     </td>}
-                    {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300 tabular-nums">{totalSummary.directAppFEOL}</td>}
-                    {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-purple-800 dark:text-purple-300 tabular-nums">{totalSummary.directLoanFEOL}</td>}
-                    {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-purple-800 dark:text-purple-300 tabular-nums">{formatCurrency(totalSummary.directVolumeFEOL)}</td>}
-                    {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.ctv}</td>}
+                    
+                    {visibleColumns.customerCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.customerCare}</td>}
+                    {visibleColumns.messageNewCust && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.messageNewCust}</td>}
+                    {visibleColumns.friendZalo && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.friendZalo}</td>}
+                    {visibleColumns.postSocial && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.postSocial}</td>}
+                    {visibleColumns.postGroup && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.postGroup}</td>}
+                    {visibleColumns.marketActivity && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.marketActivity}</td>}
+                    {visibleColumns.ctvCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.ctvCare}</td>}
                     {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.newCtv}</td>}
-                    {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{formatCurrency(totalSummary.flyers)}</td>}
-                    {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.dlk}</td>}
-                    {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.newDlk}</td>}
-                    {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.callsMonth}</td>}
-                    {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right tabular-nums">{formatCurrency(totalSummary.adSpend)}</td>}
                 </tr>
               )}
 
@@ -553,21 +648,18 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       {/* UPDATE: Sync App Sur Style Body */}
                       {visibleColumns.appSur && <td className={`border border-gray-300 dark:border-gray-600 p-2 text-center font-bold tabular-nums ${row.appSur > 0 ? 'text-teal-700' : 'text-gray-400 font-normal'}`}>{row.appSur || 0}</td>}
                       
-                      {visibleColumns.directAppCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50 tabular-nums">{row.directAppCRC || 0}</td>}
-                      {visibleColumns.directLoanCRC && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-red-50/50 text-red-700 font-bold tabular-nums">{row.directLoanCRC || 0}</td>}
                       {visibleColumns.directVolume && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right tabular-nums">{formatCurrency(row.directVolume)}</td>}
                       {visibleColumns.directBanca && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-emerald-600 tabular-nums">{formatCurrency(row.directBanca)}</td>}
                       {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center font-bold text-blue-600 tabular-nums">{rolDisplay}</td>}
-                      {visibleColumns.directAppFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50 tabular-nums">{row.directAppFEOL || 0}</td>}
-                      {visibleColumns.directLoanFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center bg-purple-50/50 font-bold tabular-nums">{row.directLoanFEOL || 0}</td>}
-                      {visibleColumns.directVolumeFEOL && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right bg-purple-50/50 tabular-nums">{formatCurrency(row.directVolumeFEOL)}</td>}
-                      {visibleColumns.ctv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.ctv}</td>}
+                      
+                      {visibleColumns.customerCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.customerCare}</td>}
+                      {visibleColumns.messageNewCust && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.messageNewCust}</td>}
+                      {visibleColumns.friendZalo && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.friendZalo}</td>}
+                      {visibleColumns.postSocial && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.postSocial}</td>}
+                      {visibleColumns.postGroup && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.postGroup}</td>}
+                      {visibleColumns.marketActivity && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.marketActivity}</td>}
+                      {visibleColumns.ctvCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.ctvCare}</td>}
                       {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.newCtv}</td>}
-                      {visibleColumns.flyers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{formatCurrency(row.flyers)}</td>}
-                      {visibleColumns.dlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.dlk}</td>}
-                      {visibleColumns.newDlk && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.newDlk}</td>}
-                      {visibleColumns.calls && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.callsMonth}</td>}
-                      {visibleColumns.adSpend && <td className="border border-gray-300 dark:border-gray-600 p-2 text-right tabular-nums">{formatCurrency(row.adSpend)}</td>}
                     </tr>
                   );
                 })

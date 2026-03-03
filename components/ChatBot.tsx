@@ -32,9 +32,12 @@ export const ChatBot: React.FC<ChatBotProps> = ({ data }) => {
 
   // Initialize chat when data changes or component mounts
   useEffect(() => {
-    if (data.length > 0) {
-      chatSessionRef.current = createChatSession(data);
-    }
+    const initChat = async () => {
+      if (data.length > 0) {
+        chatSessionRef.current = await createChatSession(data);
+      }
+    };
+    initChat();
   }, [data]);
 
   const handleSend = async (e?: React.FormEvent) => {
@@ -49,7 +52,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ data }) => {
     try {
       if (!chatSessionRef.current) {
          // Re-init if missing
-         chatSessionRef.current = createChatSession(data);
+         chatSessionRef.current = await createChatSession(data);
       }
 
       if (chatSessionRef.current) {

@@ -75,13 +75,14 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
           appPL: 0,
           appCRC: 0,
           loanCRC: 0,
-          calls: 0,
-          flyers: 0,
-          ctv: 0,
-          newCtv: 0,
-          dlk: 0,
-          newDlk: 0,
-          adSpend: 0
+          customerCare: 0,
+          messageNewCust: 0,
+          friendZalo: 0,
+          postSocial: 0,
+          postGroup: 0,
+          marketActivity: 0,
+          ctvCare: 0,
+          newCtv: 0
         };
       }
       
@@ -90,13 +91,14 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
       acc[key].appPL += (curr.directApp || 0) + (curr.directAppFEOL || 0);
       acc[key].appCRC += (curr.directAppCRC || 0);
       acc[key].loanCRC += (curr.directLoanCRC || 0);
-      acc[key].calls += curr.callsMonth;
-      acc[key].flyers += curr.flyers;
-      acc[key].ctv += curr.ctv;
-      acc[key].newCtv += curr.newCtv;
-      acc[key].dlk += curr.dlk;
-      acc[key].newDlk += curr.newDlk;
-      acc[key].adSpend += (curr.adSpend / 1000000);
+      acc[key].customerCare += (curr.customerCare || 0);
+      acc[key].messageNewCust += (curr.messageNewCust || 0);
+      acc[key].friendZalo += (curr.friendZalo || 0);
+      acc[key].postSocial += (curr.postSocial || 0);
+      acc[key].postGroup += (curr.postGroup || 0);
+      acc[key].marketActivity += (curr.marketActivity || 0);
+      acc[key].ctvCare += (curr.ctvCare || 0);
+      acc[key].newCtv += (curr.newCtv || 0);
       return acc;
     }, {} as Record<string, any>);
 
@@ -104,7 +106,9 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
       if (groupKey === 'reportDate') return a.key.localeCompare(b.key); 
       if (activeTab === 'financial') return b.totalVolume - a.totalVolume;
       if (activeTab === 'apps') return (b.appPL + b.loanCRC) - (a.appPL + a.loanCRC);
-      return Math.max(b.calls, b.adSpend) - Math.max(a.calls, a.adSpend);
+      const aActivity = a.customerCare + a.ctvCare + a.postSocial + a.postGroup + a.marketActivity;
+      const bActivity = b.customerCare + b.ctvCare + b.postSocial + b.postGroup + b.marketActivity;
+      return bActivity - aActivity;
     });
 
     return sorted.length > 50 ? sorted.slice(0, 50) : sorted;
@@ -196,7 +200,11 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
           if (chartType === 'combo') return d.totalVolume; 
           if (activeTab === 'financial') return Math.max(d.totalVolume, d.totalBanca);
           if (activeTab === 'apps') return Math.max(d.appPL, d.appCRC, d.loanCRC);
-          return Math.max(d.calls, d.flyers, d.adSpend); 
+          return Math.max(
+            (d.customerCare || 0) + (d.ctvCare || 0),
+            (d.postSocial || 0) + (d.postGroup || 0) + (d.messageNewCust || 0) + (d.friendZalo || 0),
+            (d.marketActivity || 0)
+          ); 
         }), 1);
     }
     return 1;
@@ -292,31 +300,35 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
 
   const renderColumnChart = () => (
     <div className="h-full flex items-end space-x-8 md:space-x-12 min-w-max px-4 pt-10 pb-2">
-        {chartData.map((item: any) => (
+        {chartData.map((item: any) => {
+            const care = (item.customerCare || 0) + (item.ctvCare || 0);
+            const online = (item.postSocial || 0) + (item.postGroup || 0) + (item.messageNewCust || 0) + (item.friendZalo || 0);
+            const market = (item.marketActivity || 0);
+            
+            return (
             <div key={item.key} className="flex flex-col items-center group relative min-w-[60px]">
                 <div className="flex items-end space-x-1 h-[300px] relative">
-                    <div className={`w-8 md:w-10 rounded-t-lg transition-all duration-500 relative shadow-sm ${activeTab === 'financial' ? 'bg-emerald-500' : activeTab === 'apps' ? 'bg-indigo-500' : 'bg-orange-500'}`} style={{ height: `${Math.max(((activeTab === 'financial' ? item.totalVolume : activeTab === 'apps' ? item.appPL : item.calls) / maxValue) * 100, 2)}%` }}>
+                    <div className={`w-8 md:w-10 rounded-t-lg transition-all duration-500 relative shadow-sm ${activeTab === 'financial' ? 'bg-emerald-500' : activeTab === 'apps' ? 'bg-indigo-500' : 'bg-emerald-500'}`} style={{ height: `${Math.max(((activeTab === 'financial' ? item.totalVolume : activeTab === 'apps' ? item.appPL : care) / maxValue) * 100, 2)}%` }}>
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap z-20">
-                            {formatValue(activeTab === 'financial' ? item.totalVolume : activeTab === 'apps' ? item.appPL : item.calls)}
+                            {formatValue(activeTab === 'financial' ? item.totalVolume : activeTab === 'apps' ? item.appPL : care)}
                         </div>
                     </div>
-                    <div className={`w-8 md:w-10 rounded-t-lg transition-all duration-500 relative shadow-sm ${activeTab === 'financial' ? 'bg-blue-500' : activeTab === 'apps' ? 'bg-rose-500' : 'bg-amber-400'}`} style={{ height: `${Math.max(((activeTab === 'financial' ? item.totalBanca : activeTab === 'apps' ? item.appCRC : item.flyers) / maxValue) * 100, 2)}%` }}>
+                    <div className={`w-8 md:w-10 rounded-t-lg transition-all duration-500 relative shadow-sm ${activeTab === 'financial' ? 'bg-blue-500' : activeTab === 'apps' ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ height: `${Math.max(((activeTab === 'financial' ? item.totalBanca : activeTab === 'apps' ? item.appCRC : online) / maxValue) * 100, 2)}%` }}>
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap z-20">
-                            {formatValue(activeTab === 'financial' ? item.totalBanca : activeTab === 'apps' ? item.appCRC : item.flyers)}
+                            {formatValue(activeTab === 'financial' ? item.totalBanca : activeTab === 'apps' ? item.appCRC : online)}
                         </div>
                     </div>
                     {(activeTab === 'apps' || activeTab === 'activity') && (
-                        // Fix line 308: Added missing opening quote for 'bg-red-500'
-                        <div className={`w-8 md:w-10 rounded-t-lg transition-all duration-500 relative shadow-sm ${activeTab === 'apps' ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ height: `${Math.max(((activeTab === 'apps' ? item.loanCRC : item.adSpend) / maxValue) * 100, 2)}%` }}>
+                        <div className={`w-8 md:w-10 rounded-t-lg transition-all duration-500 relative shadow-sm ${activeTab === 'apps' ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ height: `${Math.max(((activeTab === 'apps' ? item.loanCRC : market) / maxValue) * 100, 2)}%` }}>
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap z-20">
-                                {formatValue(activeTab === 'apps' ? item.loanCRC : item.adSpend)}{activeTab === 'activity' && 'Tr'}
+                                {formatValue(activeTab === 'apps' ? item.loanCRC : market)}
                             </div>
                         </div>
                     )}
                 </div>
                 <div className="mt-4 text-xs font-bold text-gray-600 dark:text-gray-300 rotate-0 md:-rotate-45 origin-top-left md:translate-y-3 w-28 truncate text-center md:text-left cursor-default" title={item.key}>{item.key}</div>
             </div>
-        ))}
+        )})}
     </div>
   );
 
@@ -345,20 +357,19 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
                 ) : (
                    <div className="flex-1 flex flex-col space-y-1.5">
                        <div className="flex items-center">
-                           <div className="h-4 rounded-r-md transition-all duration-500 bg-orange-500" style={{ width: `${Math.max((item.calls / maxValue) * 100, 2)}%` }}></div>
-                           <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{item.calls} Calls</span>
+                           <div className="h-4 rounded-r-md transition-all duration-500 bg-emerald-500" style={{ width: `${Math.max(((item.customerCare + item.ctvCare) / maxValue) * 100, 2)}%` }}></div>
+                           <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{item.customerCare + item.ctvCare} Care</span>
                        </div>
                        <div className="flex items-center">
-                           <div className="h-4 rounded-r-md transition-all duration-500 bg-amber-400" style={{ width: `${Math.max((item.flyers / maxValue) * 100, 2)}%` }}></div>
-                           <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{formatValue(item.flyers)} Tờ rơi</span>
+                           <div className="h-4 rounded-r-md transition-all duration-500 bg-blue-500" style={{ width: `${Math.max(((item.postSocial + item.postGroup + item.messageNewCust + item.friendZalo) / maxValue) * 100, 2)}%` }}></div>
+                           <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{item.postSocial + item.postGroup + item.messageNewCust + item.friendZalo} Online</span>
                        </div>
                        <div className="flex items-center">
-                           <div className="h-4 rounded-r-md transition-all duration-500 bg-red-500" style={{ width: `${Math.max((item.adSpend / maxValue) * 100, 2)}%` }}></div>
-                           <span className="ml-2 text-[10px] font-bold text-red-600 dark:text-red-400">{formatValue(item.adSpend)} Tr QC</span>
+                           <div className="h-4 rounded-r-md transition-all duration-500 bg-orange-500" style={{ width: `${Math.max((item.marketActivity / maxValue) * 100, 2)}%` }}></div>
+                           <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{item.marketActivity} Market</span>
                        </div>
                        <div className="flex gap-2 mt-1 pl-1">
-                          {item.ctv > 0 && <span className="text-[9px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">CTV: {item.ctv}</span>}
-                          {item.dlk > 0 && <span className="text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">ĐLK: {item.dlk}</span>}
+                          {item.newCtv > 0 && <span className="text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">New CTV: {item.newCtv}</span>}
                        </div>
                    </div>
                 )}
@@ -368,17 +379,23 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
   );
 
   const renderPieChart = () => {
-      const primaryMetricKey = activeTab === 'financial' ? 'totalVolume' : activeTab === 'apps' ? 'appPL' : 'calls';
-      const total = chartData.reduce((sum, item: any) => sum + item[primaryMetricKey], 0);
-      const sorted = [...chartData].sort((a: any, b: any) => b[primaryMetricKey] - a[primaryMetricKey]);
+      const getMetric = (item: any) => {
+          if (activeTab === 'financial') return item.totalVolume;
+          if (activeTab === 'apps') return item.appPL;
+          return (item.customerCare || 0) + (item.ctvCare || 0) + (item.postSocial || 0) + (item.postGroup || 0) + (item.messageNewCust || 0) + (item.friendZalo || 0) + (item.marketActivity || 0);
+      };
+      
+      const total = chartData.reduce((sum, item: any) => sum + getMetric(item), 0);
+      const sorted = [...chartData].sort((a: any, b: any) => getMetric(b) - getMetric(a));
       const topSlices = sorted.slice(0, 6);
-      const othersValue = sorted.slice(6).reduce((sum, item: any) => sum + item[primaryMetricKey], 0);
+      const othersValue = sorted.slice(6).reduce((sum, item: any) => sum + getMetric(item), 0);
       const pieData = [...topSlices];
-      if (othersValue > 0) pieData.push({ key: 'Khác', [primaryMetricKey]: othersValue });
+      if (othersValue > 0) pieData.push({ key: 'Khác', value: othersValue });
+      
       const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#9ca3af'];
       let currentAngle = 0;
       const gradientParts = pieData.map((item: any, index) => {
-          const value = item[primaryMetricKey];
+          const value = item.value !== undefined ? item.value : getMetric(item);
           const percentage = (value / total) * 100;
           const endAngle = currentAngle + (percentage * 3.6);
           const str = `${colors[index % colors.length]} ${currentAngle}deg ${endAngle}deg`;
@@ -394,13 +411,15 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
                   </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                  {pieData.map((item: any, index) => (
+                  {pieData.map((item: any, index) => {
+                      const value = item.value !== undefined ? item.value : getMetric(item);
+                      return (
                       <div key={index} className="flex items-center">
                           <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: colors[index % colors.length] }}></div>
                           <span className="font-bold text-gray-700 dark:text-gray-300 mr-2">{item.key}:</span>
-                          <span className="text-gray-500 dark:text-gray-400">{((item[primaryMetricKey]/total)*100).toFixed(1)}%</span>
+                          <span className="text-gray-500 dark:text-gray-400">{((value/total)*100).toFixed(1)}%</span>
                       </div>
-                  ))}
+                  )})}
               </div>
           </div>
       );
@@ -508,14 +527,18 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
         <div className="flex justify-center space-x-6 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 flex-wrap">
             {chartType !== 'combo' ? (
               <>
-                <div className="flex items-center"><div className={`w-3 h-3 rounded-full mr-2 ${activeTab === 'financial' ? 'bg-emerald-500' : activeTab === 'apps' ? 'bg-indigo-500' : 'bg-orange-500'}`}></div><span className="font-medium">{activeTab === 'financial' ? 'Volume (Direct + FEOL)' : activeTab === 'apps' ? 'App PL (Tổng)' : 'Calls (Cuộc gọi)'}</span></div>
-                {chartType !== 'pie' && <div className="flex items-center"><div className={`w-3 h-3 rounded-full mr-2 ${activeTab === 'financial' ? 'bg-blue-500' : activeTab === 'apps' ? 'bg-rose-500' : 'bg-amber-400'}`}></div><span className="font-medium">{activeTab === 'financial' ? 'Banca' : activeTab === 'apps' ? 'App CRC (Thẻ)' : 'Flyers (Tờ rơi)'}</span></div>}
+                {activeTab !== 'activity' && (
+                  <>
+                    <div className="flex items-center"><div className={`w-3 h-3 rounded-full mr-2 ${activeTab === 'financial' ? 'bg-emerald-500' : 'bg-indigo-500'}`}></div><span className="font-medium">{activeTab === 'financial' ? 'Volume (Direct + FEOL)' : 'App PL (Tổng)'}</span></div>
+                    {chartType !== 'pie' && <div className="flex items-center"><div className={`w-3 h-3 rounded-full mr-2 ${activeTab === 'financial' ? 'bg-blue-500' : 'bg-rose-500'}`}></div><span className="font-medium">{activeTab === 'financial' ? 'Banca' : 'App CRC (Thẻ)'}</span></div>}
+                  </>
+                )}
                 {activeTab === 'apps' && chartType !== 'pie' && <div className="flex items-center"><div className="w-3 h-3 rounded-full mr-2 bg-emerald-500"></div><span className="font-medium">Loan CRC (Đã cấp)</span></div>}
                 {activeTab === 'activity' && chartType !== 'pie' && (
                     <div className="flex items-center space-x-4">
-                        <div className="flex items-center"><div className="w-3 h-3 rounded-full mr-2 bg-red-500"></div><span className="font-medium">Chi phí QC (x1.000.000đ)</span></div>
-                        <div className="flex items-center"><div className="w-3 h-3 rounded-full mr-2 bg-blue-500"></div><span className="font-medium">CTV</span></div>
-                        <div className="flex items-center"><div className="w-3 h-3 rounded-full mr-2 bg-purple-500"></div><span className="font-medium">ĐLK</span></div>
+                        <div className="flex items-center"><div className="w-3 h-3 rounded-full mr-2 bg-emerald-500"></div><span className="font-medium">Chăm sóc (KH + CTV)</span></div>
+                        <div className="flex items-center"><div className="w-3 h-3 rounded-full mr-2 bg-blue-500"></div><span className="font-medium">Online (Social + Msg)</span></div>
+                        <div className="flex items-center"><div className="w-3 h-3 rounded-full mr-2 bg-orange-500"></div><span className="font-medium">Thị trường</span></div>
                     </div>
                 )}
               </>

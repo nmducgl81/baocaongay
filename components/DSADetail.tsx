@@ -78,12 +78,20 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
           loanCRC: acc.loanCRC + (r.directLoanCRC || 0),
           appFEOL: acc.appFEOL + (r.directAppFEOL || 0),
           loanFEOL: acc.loanFEOL + (r.directLoanFEOL || 0),
-          flyers: acc.flyers + r.flyers,
-          calls: acc.calls + r.callsMonth
+          customerCare: acc.customerCare + (r.customerCare || 0),
+          messageNewCust: acc.messageNewCust + (r.messageNewCust || 0),
+          friendZalo: acc.friendZalo + (r.friendZalo || 0),
+          postSocial: acc.postSocial + (r.postSocial || 0),
+          postGroup: acc.postGroup + (r.postGroup || 0),
+          marketActivity: acc.marketActivity + (r.marketActivity || 0),
+          ctvCare: acc.ctvCare + (r.ctvCare || 0),
+          newCtv: acc.newCtv + (r.newCtv || 0)
       }), { 
           volume: 0, apps: 0, loans: 0, banca: 0, 
           appCRC: 0, loanCRC: 0, appFEOL: 0, loanFEOL: 0, 
-          flyers: 0, calls: 0 
+          customerCare: 0, messageNewCust: 0, friendZalo: 0,
+          postSocial: 0, postGroup: 0, marketActivity: 0,
+          ctvCare: 0, newCtv: 0
       });
   }, [filteredRecords]);
 
@@ -94,16 +102,18 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
   const proApp = (subtotal.apps / Math.max(1, diffDays)).toFixed(2);
   const caseSize = subtotal.loans > 0 ? subtotal.volume / subtotal.loans : 0;
 
-  // KPI Calculation Formula (Targets are Monthly, so we might need to adjust logic if viewing short term, but keeping simple for now)
+  // KPI Calculation Formula
   const TARGET_VOLUME = 100000000; // 100M
   const TARGET_APPS = 10;
-  const TARGET_CALLS = 100;
+  const TARGET_ACTIVITY = 150; // New target for total activity
 
   const volScore = Math.min(40, (subtotal.volume / TARGET_VOLUME) * 40);
   const appScore = Math.min(30, (subtotal.apps / TARGET_APPS) * 30);
-  const callScore = Math.min(30, (subtotal.calls / TARGET_CALLS) * 30);
   
-  const kpiScore = (volScore + appScore + callScore).toFixed(1);
+  const totalActivity = subtotal.customerCare + subtotal.ctvCare + subtotal.postSocial + subtotal.postGroup + subtotal.messageNewCust + subtotal.friendZalo + subtotal.marketActivity + subtotal.newCtv;
+  const activityScore = Math.min(30, (totalActivity / TARGET_ACTIVITY) * 30);
+  
+  const kpiScore = (volScore + appScore + activityScore).toFixed(1);
 
   // Date Filter Helpers
   const setFilterToday = () => { const t = new Date().toISOString().split('T')[0]; setStartDate(t); setEndDate(t); };
@@ -187,13 +197,13 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                   <div>
                      <div className="flex justify-between items-center mb-1">
                         <span className="font-medium">Hoạt động (30%)</span>
-                        <span className="font-bold text-orange-600">{callScore.toFixed(1)}/30</span>
+                        <span className="font-bold text-orange-600">{activityScore.toFixed(1)}/30</span>
                      </div>
                      <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
-                         <div className="bg-orange-500 h-1.5 rounded-full" style={{width: `${(callScore/30)*100}%`}}></div>
+                         <div className="bg-orange-500 h-1.5 rounded-full" style={{width: `${(activityScore/30)*100}%`}}></div>
                      </div>
                      <div className="text-xs text-gray-500">
-                        Đạt: {subtotal.calls} / {TARGET_CALLS} Calls
+                        Đạt: {totalActivity} / {TARGET_ACTIVITY} Actions
                      </div>
                   </div>
                </div>
@@ -279,13 +289,13 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
               </div>
            </div>
 
-           {/* Card 6: Calls */}
+           {/* Card 6: Activity */}
            <div className="bg-green-50 p-3 rounded-lg border border-green-100 shadow-sm">
               <div className="flex items-center text-green-700 mb-1">
-                 <Phone size={16} className="mr-1.5" />
-                 <span className="font-bold text-xs truncate">Calls</span>
+                 <Activity size={16} className="mr-1.5" />
+                 <span className="font-bold text-xs truncate">Activity</span>
               </div>
-              <div className="text-lg font-bold text-gray-800 truncate">{subtotal.calls}</div>
+              <div className="text-lg font-bold text-gray-800 truncate">{totalActivity}</div>
            </div>
         </div>
 
@@ -302,8 +312,10 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                     <th className="px-4 py-3 text-center bg-blue-50 text-blue-800">App/Loan</th>
                     <th className="px-4 py-3 text-center bg-red-50 text-red-800">App/Loan CRC</th>
                     <th className="px-4 py-3 text-center bg-purple-50 text-purple-800">App/Loan FEOL</th>
-                    <th className="px-4 py-3 text-center">Tờ rơi</th>
-                    <th className="px-4 py-3 text-center">Cuộc gọi</th>
+                    <th className="px-4 py-3 text-center">Care</th>
+                    <th className="px-4 py-3 text-center">Online</th>
+                    <th className="px-4 py-3 text-center">Market</th>
+                    <th className="px-4 py-3 text-center">New CTV</th>
                     <th className="px-4 py-3 text-center">Trạng thái</th>
                     <th className="px-4 py-3 text-center bg-gray-200">Thao tác</th>
                     </tr>
@@ -325,8 +337,10 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                                 <td className="px-4 py-2 text-center bg-blue-50/30"><span className="text-gray-500">{r.directApp}</span> / <span className="font-bold text-blue-700">{r.directLoan}</span></td>
                                 <td className="px-4 py-2 text-center bg-red-50/30"><span className="text-gray-500">{r.directAppCRC || 0}</span> / <span className="font-bold text-red-700">{r.directLoanCRC || 0}</span></td>
                                 <td className="px-4 py-2 text-center bg-purple-50/30"><span className="text-gray-500">{r.directAppFEOL || 0}</span> / <span className="font-bold text-purple-700">{r.directLoanFEOL || 0}</span></td>
-                                <td className="px-4 py-2 text-center">{r.flyers}</td>
-                                <td className="px-4 py-2 text-center">{r.callsMonth}</td>
+                                <td className="px-4 py-2 text-center">{(r.customerCare || 0) + (r.ctvCare || 0)}</td>
+                                <td className="px-4 py-2 text-center">{(r.postSocial || 0) + (r.postGroup || 0) + (r.messageNewCust || 0) + (r.friendZalo || 0)}</td>
+                                <td className="px-4 py-2 text-center">{r.marketActivity || 0}</td>
+                                <td className="px-4 py-2 text-center">{r.newCtv || 0}</td>
                                 <td className="px-4 py-2 text-center">
                                     <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${r.approvalStatus === 'Pending' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                                     {r.approvalStatus === 'Pending' ? 'Chờ duyệt' : 'Approved'}
@@ -368,8 +382,10 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                             <td className="px-4 py-3 text-center text-blue-800">{subtotal.apps} / {subtotal.loans}</td>
                             <td className="px-4 py-3 text-center text-red-800">{subtotal.appCRC} / {subtotal.loanCRC}</td>
                             <td className="px-4 py-3 text-center text-purple-800">{subtotal.appFEOL} / {subtotal.loanFEOL}</td>
-                            <td className="px-4 py-3 text-center">{subtotal.flyers}</td>
-                            <td className="px-4 py-3 text-center">{subtotal.calls}</td>
+                            <td className="px-4 py-3 text-center">{subtotal.customerCare + subtotal.ctvCare}</td>
+                            <td className="px-4 py-3 text-center">{subtotal.postSocial + subtotal.postGroup + subtotal.messageNewCust + subtotal.friendZalo}</td>
+                            <td className="px-4 py-3 text-center">{subtotal.marketActivity}</td>
+                            <td className="px-4 py-3 text-center">{subtotal.newCtv}</td>
                             <td className="px-4 py-3 text-center" colSpan={2}></td>
                         </tr>
                     </tfoot>
