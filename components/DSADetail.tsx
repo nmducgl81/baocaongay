@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { SalesRecord, User } from '../types';
-import { ArrowLeft, TrendingUp, Phone, Users, CheckCircle, Info, X, BarChart2, PieChart, Pencil, Check, Calendar, RefreshCw } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Phone, Users, CheckCircle, Info, X, BarChart2, PieChart, Pencil, Check, Calendar, RefreshCw, Activity } from 'lucide-react';
 
 interface DSADetailProps {
   dsaCode: string;
