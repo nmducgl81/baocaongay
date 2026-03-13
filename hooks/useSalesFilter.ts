@@ -106,7 +106,7 @@ export const useSalesFilter = ({
                                 reportDate: dateStr,
                                 status: 'Chưa báo cáo',
                                 approvalStatus: 'Approved',
-                                directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0, 
+                                directApp: 0, directLoan: 0, directLoanXSTU: 0, directAppCRC: 0, directLoanCRC: 0, 
                                 directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0, 
                                 directVolume: 0, directBanca: 0, directRol: '0.0%', 
                                 appSur: 0,
@@ -139,10 +139,11 @@ export const useSalesFilter = ({
             // CẬP NHẬT: Tổng App bao gồm cả Trực tiếp và FEOL
             totalApps: acc.totalApps + curr.directApp + (curr.directAppFEOL || 0), 
             totalLoans: acc.totalLoans + curr.directLoan, 
+            totalLoanXSTU: acc.totalLoanXSTU + (curr.directLoanXSTU || 0),
             totalLoansFEOL: acc.totalLoansFEOL + (curr.directLoanFEOL || 0), 
             totalLoanCRC: acc.totalLoanCRC + (curr.directLoanCRC || 0), 
             totalBanca: acc.totalBanca + curr.directBanca 
-        }), { totalRecords: 0, reportedCount: 0, totalVolume: 0, totalDirectVolume: 0, totalApps: 0, totalLoans: 0, totalLoansFEOL: 0, totalLoanCRC: 0, totalBanca: 0 });
+        }), { totalRecords: 0, reportedCount: 0, totalVolume: 0, totalDirectVolume: 0, totalApps: 0, totalLoans: 0, totalLoanXSTU: 0, totalLoansFEOL: 0, totalLoanCRC: 0, totalBanca: 0 });
     }, [filteredData]);
 
     const dsaInfo = useMemo(() => {

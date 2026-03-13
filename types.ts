@@ -26,7 +26,8 @@ export interface SalesRecord {
 
   // Red Section: Direct Sales
   directApp: number;
-  directLoan: number;
+  directLoan: number; // Will be labeled as LOAN_PL
+  directLoanXSTU: number; // New field: LOAN XSTU
   directAppCRC: number; // New: Credit Card App
   directLoanCRC: number; // New: Credit Card Loan (Issued)
   directVolume: number;
@@ -60,6 +61,7 @@ export interface DashboardStats {
   totalDirectVolume: number; // Only Direct Volume (Cash)
   totalApps: number;
   totalLoans: number; // Total Cash Loans
+  totalLoanXSTU: number; // New: Total XSTU Loans
   totalLoansFEOL: number; // New: Total FEOL Loans for Case Size
   totalLoanCRC: number; 
   totalBanca: number;

@@ -48,6 +48,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         approval: true,
         directApp: true,
         directLoan: true,
+        directLoanXSTU: true,
         directVolume: true,
         directBanca: true,
         directRol: true,
@@ -147,7 +148,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 dsaCode: tableScope === 'dsa' ? r.dsaCode : 'SUMMARY',
                 status: 'Tổng hợp',
                 approvalStatus: 'Approved',
-                directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
+                directApp: 0, directLoan: 0, directLoanXSTU: 0, directAppCRC: 0, directLoanCRC: 0,
                 directVolume: 0, directBanca: 0, 
                 directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
                 appSur: 0, 
@@ -165,6 +166,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         const g = groups[key];
         g.directApp += r.directApp;
         g.directLoan += r.directLoan;
+        g.directLoanXSTU += (r.directLoanXSTU || 0);
         g.directAppCRC += r.directAppCRC;
         g.directLoanCRC += r.directLoanCRC;
         g.directVolume += r.directVolume;
@@ -207,6 +209,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
     return displayRecords.reduce((acc, r) => ({
         directApp: acc.directApp + r.directApp,
         directLoan: acc.directLoan + r.directLoan,
+        directLoanXSTU: acc.directLoanXSTU + (r.directLoanXSTU || 0),
         directAppCRC: acc.directAppCRC + (r.directAppCRC || 0),
         directLoanCRC: acc.directLoanCRC + (r.directLoanCRC || 0),
         directVolume: acc.directVolume + r.directVolume,
@@ -224,7 +227,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         ctvCare: acc.ctvCare + (r.ctvCare || 0),
         newCtv: acc.newCtv + r.newCtv,
     }), {
-        directApp: 0, directLoan: 0, directAppCRC: 0, directLoanCRC: 0,
+        directApp: 0, directLoan: 0, directLoanXSTU: 0, directAppCRC: 0, directLoanCRC: 0,
         directVolume: 0, directBanca: 0,
         directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
         appSur: 0,
@@ -246,7 +249,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             'DSS': record.dss,
             'Khu Vực (SM)': record.smName,
             'App (Tiền mặt)': record.directApp,
-            'Loan (Tiền mặt)': record.directLoan,
+            'LOAN_PL (Tiền mặt)': record.directLoan,
+            'LOAN XSTU': record.directLoanXSTU || 0,
             'App Sur': record.appSur,
             'Volume': record.directVolume,
             'Banca': record.directBanca,
@@ -375,7 +379,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                     <div className="mb-3">
                                         <div className="text-xs font-bold text-blue-600 uppercase mb-2 px-2">Sản phẩm</div>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directApp} onChange={() => toggleColumn('directApp')} className="mr-3"/><span>App (Tiền mặt)</span></label>
-                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directLoan} onChange={() => toggleColumn('directLoan')} className="mr-3"/><span>Loan (Tiền mặt)</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directLoan} onChange={() => toggleColumn('directLoan')} className="mr-3"/><span>LOAN_PL (Tiền mặt)</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directLoanXSTU} onChange={() => toggleColumn('directLoanXSTU')} className="mr-3"/><span>LOAN XSTU</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.appSur} onChange={() => toggleColumn('appSur')} className="mr-3"/><span>App Sur (Chứng từ)</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directVolume} onChange={() => toggleColumn('directVolume')} className="mr-3"/><span>Volume</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.directBanca} onChange={() => toggleColumn('directBanca')} className="mr-3"/><span>Banca</span></label>
@@ -416,7 +421,15 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 
                 {/* STICKY COLUMN 2: Name */}
                 <th className="border border-gray-300 dark:border-gray-600 p-2 sticky left-[40px] z-50 bg-emerald-700 w-[130px] min-w-[130px] max-w-[130px] md:w-[200px] md:min-w-[200px] md:max-w-[200px] text-left shadow-lg">
-                    {isMissingView ? 'Nhân sự (DSA)' : (tableScope === 'dsa' ? 'Nhân sự (DSA)' : tableScope === 'dss' ? 'Team (DSS)' : 'Khu Vực (SM)')}
+                    {isMissingView ? (
+                        <><div>Nhân sự</div><div>(DSA)</div></>
+                    ) : (tableScope === 'dsa' ? (
+                        <><div>Nhân sự</div><div>(DSA)</div></>
+                    ) : tableScope === 'dss' ? (
+                        <><div>Team</div><div>(DSS)</div></>
+                    ) : (
+                        <><div>Khu Vực</div><div>(SM)</div></>
+                    ))}
                 </th>
 
                 {(tableScope === 'dsa' || isMissingView) && canShowDSS && visibleColumns.dss && <th className="border border-gray-300 p-2 min-w-[80px]">DSS</th>}
@@ -426,68 +439,71 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 
                 {showActionColumn && (
                     <th className="border border-gray-300 p-2 min-w-[40px] bg-gray-600 text-left">
-                        {isMissingView ? 'Danh sách ngày thiếu' : 'Xóa'}
+                        {isMissingView ? (
+                            <><div>Danh sách</div><div>ngày thiếu</div></>
+                        ) : 'Xóa'}
                     </th>
                 )}
 
                 {!isMissingView && (
                     <>
                         {visibleColumns.directApp && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">App</th>}
-                        {visibleColumns.directLoan && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">Loan</th>}
+                        {visibleColumns.directLoan && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]"><div>LOAN</div><div>PL</div></th>}
+                        {visibleColumns.directLoanXSTU && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]"><div>LOAN</div><div>XSTU</div></th>}
                         
                         {/* UPDATE: Sync App Sur Style */}
-                        {visibleColumns.appSur && <th className="border border-gray-300 p-2 bg-teal-50 text-teal-900 min-w-[60px]">App Sur</th>}
+                        {visibleColumns.appSur && <th className="border border-gray-300 p-2 bg-teal-50 text-teal-900 min-w-[60px]"><div>App</div><div>Sur</div></th>}
                         
                         {visibleColumns.directVolume && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Volume</th>}
                         {visibleColumns.directBanca && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[90px]">Banca</th>}
-                        {visibleColumns.directRol && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]">Rol (%)</th>}
+                        {visibleColumns.directRol && <th className="border border-gray-300 p-2 bg-emerald-50 text-gray-800 min-w-[50px]"><div>Rol</div><div>(%)</div></th>}
                         
                         {visibleColumns.customerCare && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
-                                <div>Chăm sóc KH</div>
-                                <div className="text-[9px] font-normal opacity-70">(10-15 KH)</div>
+                                <div>Chăm sóc</div>
+                                <div>KH</div>
                             </th>
                         )}
                         {visibleColumns.messageNewCust && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
-                                <div>Nhắn tin tìm KH</div>
-                                <div className="text-[9px] font-normal opacity-70">(&gt;= 30 TIN)</div>
+                                <div>Nhắn tin</div>
+                                <div>tìm KH</div>
                             </th>
                         )}
                         {visibleColumns.friendZalo && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[70px]">
-                                <div>Kết bạn Zalo/FB</div>
-                                <div className="text-[9px] font-normal opacity-70">(2 bạn)</div>
+                                <div>Kết bạn</div>
+                                <div>Zalo/FB</div>
                             </th>
                         )}
                         {visibleColumns.postSocial && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
-                                <div>Đăng bài tìm KH</div>
-                                <div className="text-[9px] font-normal opacity-70">(2 bài)</div>
+                                <div>Đăng bài</div>
+                                <div>tìm KH</div>
                             </th>
                         )}
                         {visibleColumns.postGroup && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[70px]">
-                                <div>Đăng bài hội nhóm</div>
-                                <div className="text-[9px] font-normal opacity-70">(1 nhóm)</div>
+                                <div>Đăng bài</div>
+                                <div>hội nhóm</div>
                             </th>
                         )}
                         {visibleColumns.marketActivity && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
-                                <div>Hoạt động thị trường</div>
-                                <div className="text-[9px] font-normal opacity-70">(1 lần/ngày)</div>
+                                <div>Hoạt động</div>
+                                <div>thị trường</div>
                             </th>
                         )}
                         {visibleColumns.ctvCare && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
-                                <div>Gọi/nhắn CTV cũ</div>
-                                <div className="text-[9px] font-normal opacity-70">(&gt;= 5 CTV)</div>
+                                <div>Gọi/nhắn</div>
+                                <div>CTV cũ</div>
                             </th>
                         )}
                         {visibleColumns.newCtv && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
-                                <div>Tuyển & trao đổi CTV mới</div>
-                                <div className="text-[9px] font-normal opacity-70">(1-2 CTV)</div>
+                                <div>Tuyển &</div>
+                                <div>TĐ CTV mới</div>
                             </th>
                         )}
                     </>
@@ -504,6 +520,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                           <td className="border p-2"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
                           {visibleColumns.directApp && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
                           {visibleColumns.directLoan && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
+                          {visibleColumns.directLoanXSTU && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
                           {visibleColumns.appSur && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
                           {visibleColumns.directVolume && <td className="border p-2"><div className="h-4 bg-gray-100 rounded w-full"></div></td>}
                           <td colSpan={10} className="border p-2"></td>
@@ -535,6 +552,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     {/* Metrics - Added tabular-nums for alignment */}
                     {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-emerald-800 dark:text-emerald-300 tabular-nums">{totalSummary.directApp}</td>}
                     {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-700 dark:text-red-300 tabular-nums">{totalSummary.directLoan}</td>}
+                    {visibleColumns.directLoanXSTU && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-orange-700 dark:text-orange-300 tabular-nums">{totalSummary.directLoanXSTU}</td>}
                     
                     {/* UPDATE: Sync App Sur Style in Subtotal */}
                     {visibleColumns.appSur && <td className="border border-gray-300 dark:border-gray-600 p-2 bg-teal-50/50 dark:bg-teal-900/20 text-center font-bold text-teal-800 dark:text-teal-300 tabular-nums">{totalSummary.appSur}</td>}
@@ -644,6 +662,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       {/* Metrics: Added tabular-nums for vertical alignment */}
                       {visibleColumns.directApp && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.directApp}</td>}
                       {visibleColumns.directLoan && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-red-600 font-medium tabular-nums">{row.directLoan}</td>}
+                      {visibleColumns.directLoanXSTU && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center text-orange-600 font-medium tabular-nums">{row.directLoanXSTU || 0}</td>}
                       
                       {/* UPDATE: Sync App Sur Style Body */}
                       {visibleColumns.appSur && <td className={`border border-gray-300 dark:border-gray-600 p-2 text-center font-bold tabular-nums ${row.appSur > 0 ? 'text-teal-700' : 'text-gray-400 font-normal'}`}>{row.appSur || 0}</td>}

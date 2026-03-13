@@ -94,8 +94,8 @@ const App: React.FC = () => {
 
   const handleExportCSV = () => {
     if (filteredData.length === 0) { alert("Không có dữ liệu!"); return; }
-    const headers = ["ID", "DSA Code", "Họ Tên", "DSS", "SM", "Ngày", "Trạng Thái", "Duyệt", "App", "Loan", "Volume", "Banca"];
-    const csvRows = [headers.join(','), ...filteredData.map(r => [r.id, r.dsaCode, `"${r.name}"`, `"${r.dss}"`, `"${r.smName}"`, r.reportDate, r.status, r.approvalStatus, r.directApp, r.directLoan, r.directVolume, r.directBanca].join(','))];
+    const headers = ["ID", "DSA Code", "Họ Tên", "DSS", "SM", "Ngày", "Trạng Thái", "Duyệt", "App", "LOAN_PL", "LOAN XSTU", "Volume", "Banca"];
+    const csvRows = [headers.join(','), ...filteredData.map(r => [r.id, r.dsaCode, `"${r.name}"`, `"${r.dss}"`, `"${r.smName}"`, r.reportDate, r.status, r.approvalStatus, r.directApp, r.directLoan, r.directLoanXSTU || 0, r.directVolume, r.directBanca].join(','))];
     const blob = new Blob(["\uFEFF" + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

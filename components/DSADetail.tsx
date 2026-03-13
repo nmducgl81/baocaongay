@@ -73,6 +73,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
           volume: acc.volume + r.directVolume,
           apps: acc.apps + r.directApp,
           loans: acc.loans + r.directLoan,
+          loanXSTU: acc.loanXSTU + (r.directLoanXSTU || 0),
           banca: acc.banca + r.directBanca,
           appCRC: acc.appCRC + (r.directAppCRC || 0),
           loanCRC: acc.loanCRC + (r.directLoanCRC || 0),
@@ -87,7 +88,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
           ctvCare: acc.ctvCare + (r.ctvCare || 0),
           newCtv: acc.newCtv + (r.newCtv || 0)
       }), { 
-          volume: 0, apps: 0, loans: 0, banca: 0, 
+          volume: 0, apps: 0, loans: 0, loanXSTU: 0, banca: 0, 
           appCRC: 0, loanCRC: 0, appFEOL: 0, loanFEOL: 0, 
           customerCare: 0, messageNewCust: 0, friendZalo: 0,
           postSocial: 0, postGroup: 0, marketActivity: 0,
@@ -309,15 +310,16 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                     <th className="px-4 py-3 whitespace-nowrap">Ngày</th>
                     <th className="px-4 py-3 text-center bg-emerald-100 text-emerald-900">Volume</th>
                     <th className="px-4 py-3 text-center bg-emerald-50 text-emerald-800">Banca</th>
-                    <th className="px-4 py-3 text-center bg-blue-50 text-blue-800">App/Loan</th>
-                    <th className="px-4 py-3 text-center bg-red-50 text-red-800">App/Loan CRC</th>
-                    <th className="px-4 py-3 text-center bg-purple-50 text-purple-800">App/Loan FEOL</th>
+                    <th className="px-4 py-3 text-center bg-blue-50 text-blue-800"><div>App/</div><div>LOAN_PL</div></th>
+                    <th className="px-4 py-3 text-center bg-orange-50 text-orange-800"><div>LOAN</div><div>XSTU</div></th>
+                    <th className="px-4 py-3 text-center bg-red-50 text-red-800"><div>App/Loan</div><div>CRC</div></th>
+                    <th className="px-4 py-3 text-center bg-purple-50 text-purple-800"><div>App/Loan</div><div>FEOL</div></th>
                     <th className="px-4 py-3 text-center">Care</th>
                     <th className="px-4 py-3 text-center">Online</th>
                     <th className="px-4 py-3 text-center">Market</th>
-                    <th className="px-4 py-3 text-center">New CTV</th>
-                    <th className="px-4 py-3 text-center">Trạng thái</th>
-                    <th className="px-4 py-3 text-center bg-gray-200">Thao tác</th>
+                    <th className="px-4 py-3 text-center"><div>New</div><div>CTV</div></th>
+                    <th className="px-4 py-3 text-center"><div>Trạng</div><div>thái</div></th>
+                    <th className="px-4 py-3 text-center bg-gray-200"><div>Thao</div><div>tác</div></th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -335,6 +337,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                                     {new Intl.NumberFormat('vi-VN').format(r.directBanca)}
                                 </td>
                                 <td className="px-4 py-2 text-center bg-blue-50/30"><span className="text-gray-500">{r.directApp}</span> / <span className="font-bold text-blue-700">{r.directLoan}</span></td>
+                                <td className="px-4 py-2 text-center bg-orange-50/30 font-bold text-orange-700">{r.directLoanXSTU || 0}</td>
                                 <td className="px-4 py-2 text-center bg-red-50/30"><span className="text-gray-500">{r.directAppCRC || 0}</span> / <span className="font-bold text-red-700">{r.directLoanCRC || 0}</span></td>
                                 <td className="px-4 py-2 text-center bg-purple-50/30"><span className="text-gray-500">{r.directAppFEOL || 0}</span> / <span className="font-bold text-purple-700">{r.directLoanFEOL || 0}</span></td>
                                 <td className="px-4 py-2 text-center">{(r.customerCare || 0) + (r.ctvCare || 0)}</td>
@@ -380,6 +383,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                             <td className="px-4 py-3 text-right bg-emerald-200">{new Intl.NumberFormat('vi-VN').format(subtotal.volume)}</td>
                             <td className="px-4 py-3 text-right">{new Intl.NumberFormat('vi-VN').format(subtotal.banca)}</td>
                             <td className="px-4 py-3 text-center text-blue-800">{subtotal.apps} / {subtotal.loans}</td>
+                            <td className="px-4 py-3 text-center text-orange-800">{subtotal.loanXSTU}</td>
                             <td className="px-4 py-3 text-center text-red-800">{subtotal.appCRC} / {subtotal.loanCRC}</td>
                             <td className="px-4 py-3 text-center text-purple-800">{subtotal.appFEOL} / {subtotal.loanFEOL}</td>
                             <td className="px-4 py-3 text-center">{subtotal.customerCare + subtotal.ctvCare}</td>

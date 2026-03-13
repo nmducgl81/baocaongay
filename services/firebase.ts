@@ -1,6 +1,6 @@
 // @ts-ignore
 import { initializeApp } from "firebase/app";
-import { getFirestore, Firestore } from "firebase/firestore";
+import { getFirestore, Firestore, enableMultiTabIndexedDbPersistence, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, signInAnonymously, Auth } from "firebase/auth";
 
 // Config đã được cập nhật từ Firebase Console của bạn
@@ -23,7 +23,24 @@ try {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
   auth = getAuth(app);
-  console.log("✅ Firebase Service Initialized");
+  
+  // Enable Offline Persistence (Optimized for Bandwidth & Performance)
+  // This caches data locally and only downloads changes (deltas) from the server.
+  if (typeof window !== 'undefined') {
+      enableMultiTabIndexedDbPersistence(db).catch((err) => {
+          if (err.code === 'failed-precondition') {
+              // Multiple tabs open, persistence can only be enabled in one tab at a a time.
+              // Fallback to single tab persistence if needed, or just log
+              console.warn("Persistence failed: Multiple tabs open");
+          } else if (err.code === 'unimplemented') {
+              // The current browser does not support all of the
+              // features required to enable persistence
+              console.warn("Persistence not supported by browser");
+          }
+      });
+  }
+
+  console.log("✅ Firebase Service Initialized with Persistence");
 } catch (error) {
   console.error("❌ Firebase init error:", error);
   console.warn("⚠️ App running in Offline Mode due to Firebase error.");
