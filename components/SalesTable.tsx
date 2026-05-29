@@ -60,7 +60,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         postGroup: true,
         marketActivity: true,
         ctvCare: true,
-        newCtv: true
+        newCtv: true,
+        communityMembers: true
   });
 
   const toggleColumn = (key: keyof typeof visibleColumns) => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
@@ -153,7 +154,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
                 appSur: 0, 
                 customerCare: 0, messageNewCust: 0, friendZalo: 0, postSocial: 0,
-                postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0,
+                postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0, communityMembers: 0,
                 _childIds: [],
                 missingCount: 0
             };
@@ -182,7 +183,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         g.postGroup += (r.postGroup || 0);
         g.marketActivity += (r.marketActivity || 0);
         g.ctvCare += (r.ctvCare || 0);
-        g.newCtv += r.newCtv;
+        g.newCtv += (r.newCtv || 0);
+        g.communityMembers += (r.communityMembers || 0);
         if (!r.id.startsWith('virt-')) {
             g._childIds.push(r.id);
         }
@@ -225,14 +227,15 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         postGroup: acc.postGroup + (r.postGroup || 0),
         marketActivity: acc.marketActivity + (r.marketActivity || 0),
         ctvCare: acc.ctvCare + (r.ctvCare || 0),
-        newCtv: acc.newCtv + r.newCtv,
+        newCtv: acc.newCtv + (r.newCtv || 0),
+        communityMembers: acc.communityMembers + (r.communityMembers || 0),
     }), {
         directApp: 0, directLoan: 0, directLoanXSTU: 0, directAppCRC: 0, directLoanCRC: 0,
         directVolume: 0, directBanca: 0,
         directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
         appSur: 0,
         customerCare: 0, messageNewCust: 0, friendZalo: 0, postSocial: 0,
-        postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0
+        postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0, communityMembers: 0
     });
   }, [displayRecords, isMissingView]);
 
@@ -262,7 +265,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             'Đăng bài hội nhóm': record.postGroup,
             'Hoạt động thị trường': record.marketActivity,
             'Gọi/nhắn CTV cũ': record.ctvCare,
-            'Tuyển & trao đổi CTV mới': record.newCtv
+            'Tuyển & trao đổi CTV mới': record.newCtv,
+            'Số lượng thành viên cộng đồng': record.communityMembers || 0
         };
     });
 
@@ -395,6 +399,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.marketActivity} onChange={() => toggleColumn('marketActivity')} className="mr-3"/><span>Hoạt động thị trường</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.ctvCare} onChange={() => toggleColumn('ctvCare')} className="mr-3"/><span>Gọi/nhắn CTV cũ</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.newCtv} onChange={() => toggleColumn('newCtv')} className="mr-3"/><span>Tuyển & trao đổi CTV mới</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.communityMembers} onChange={() => toggleColumn('communityMembers')} className="mr-3"/><span>TV Cộng đồng</span></label>
                                     </div>
                                 </div>
                             </div>
@@ -506,6 +511,12 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                 <div>TĐ CTV mới</div>
                             </th>
                         )}
+                        {visibleColumns.communityMembers && (
+                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
+                                <div>Số lượng</div>
+                                <div>TV C.Đồng</div>
+                            </th>
+                        )}
                     </>
                 )}
               </tr>
@@ -571,6 +582,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     {visibleColumns.marketActivity && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.marketActivity}</td>}
                     {visibleColumns.ctvCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.ctvCare}</td>}
                     {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.newCtv}</td>}
+                    {visibleColumns.communityMembers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.communityMembers}</td>}
                 </tr>
               )}
 
@@ -679,6 +691,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       {visibleColumns.marketActivity && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.marketActivity}</td>}
                       {visibleColumns.ctvCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.ctvCare}</td>}
                       {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.newCtv}</td>}
+                      {visibleColumns.communityMembers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.communityMembers || 0}</td>}
                     </tr>
                   );
                 })

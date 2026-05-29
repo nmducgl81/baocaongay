@@ -52,6 +52,7 @@ export interface SalesRecord {
   marketActivity: number; // Hoạt động thị trường (1 lần/ngày)
   ctvCare: number; // Gọi/nhắn CTV hiện hữu (>= 5 CTV)
   newCtv: number; // Tuyển & trao đổi CTV mới (1 - 2 CTV)
+  communityMembers?: number; // Số thành viên trong cộng đồng
 }
 
 export interface DashboardStats {

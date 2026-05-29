@@ -113,7 +113,7 @@ export const useSalesFilter = ({
                                 onlineApp: 0, onlineVolume: 0, 
                                 customerCare: 0, messageNewCust: 0, friendZalo: 0,
                                 postSocial: 0, postGroup: 0, marketActivity: 0,
-                                ctvCare: 0, newCtv: 0
+                                ctvCare: 0, newCtv: 0, communityMembers: 0
                             });
                         }
                     }

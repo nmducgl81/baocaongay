@@ -103,7 +103,8 @@ export const generateMockData = (): SalesRecord[] => {
       postGroup: 0,
       marketActivity: 0,
       ctvCare: 0,
-      newCtv: 0
+      newCtv: 0,
+      communityMembers: 0
     },
     {
       id: '3',
@@ -135,7 +136,8 @@ export const generateMockData = (): SalesRecord[] => {
       postGroup: 1,
       marketActivity: 1,
       ctvCare: 6,
-      newCtv: 0
+      newCtv: 0,
+      communityMembers: 5
     },
     {
       id: '4',
@@ -167,7 +169,8 @@ export const generateMockData = (): SalesRecord[] => {
       postGroup: 2,
       marketActivity: 1,
       ctvCare: 10,
-      newCtv: 2
+      newCtv: 2,
+      communityMembers: 20
     },
     {
       id: '5',

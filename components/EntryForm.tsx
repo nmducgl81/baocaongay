@@ -100,6 +100,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     marketActivity: 0,
     ctvCare: 0,
     newCtv: 0,
+    communityMembers: 0,
     approvalStatus: 'Approved'
   };
 
@@ -404,6 +405,10 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
                  <label className="block text-xs font-bold text-amber-800">Tuyển & trao đổi CTV mới</label>
                  <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 1-2 CTV)</div>
                  <input type="number" name="newCtv" value={formData.newCtv} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
+              </div>
+              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
+                 <label className="block text-xs font-bold text-amber-800">Số thành viên trong cộng đồng</label>
+                 <input type="number" name="communityMembers" value={formData.communityMembers} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
             </div>
           </div>

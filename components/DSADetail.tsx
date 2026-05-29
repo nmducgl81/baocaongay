@@ -86,13 +86,14 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
           postGroup: acc.postGroup + (r.postGroup || 0),
           marketActivity: acc.marketActivity + (r.marketActivity || 0),
           ctvCare: acc.ctvCare + (r.ctvCare || 0),
-          newCtv: acc.newCtv + (r.newCtv || 0)
+          newCtv: acc.newCtv + (r.newCtv || 0),
+          communityMembers: acc.communityMembers + (r.communityMembers || 0)
       }), { 
           volume: 0, apps: 0, loans: 0, loanXSTU: 0, banca: 0, 
           appCRC: 0, loanCRC: 0, appFEOL: 0, loanFEOL: 0, 
           customerCare: 0, messageNewCust: 0, friendZalo: 0,
           postSocial: 0, postGroup: 0, marketActivity: 0,
-          ctvCare: 0, newCtv: 0
+          ctvCare: 0, newCtv: 0, communityMembers: 0
       });
   }, [filteredRecords]);
 
@@ -111,7 +112,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
   const volScore = Math.min(40, (subtotal.volume / TARGET_VOLUME) * 40);
   const appScore = Math.min(30, (subtotal.apps / TARGET_APPS) * 30);
   
-  const totalActivity = subtotal.customerCare + subtotal.ctvCare + subtotal.postSocial + subtotal.postGroup + subtotal.messageNewCust + subtotal.friendZalo + subtotal.marketActivity + subtotal.newCtv;
+  const totalActivity = subtotal.customerCare + subtotal.ctvCare + subtotal.postSocial + subtotal.postGroup + subtotal.messageNewCust + subtotal.friendZalo + subtotal.marketActivity + subtotal.newCtv + subtotal.communityMembers;
   const activityScore = Math.min(30, (totalActivity / TARGET_ACTIVITY) * 30);
   
   const kpiScore = (volScore + appScore + activityScore).toFixed(1);
@@ -318,6 +319,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                     <th className="px-4 py-3 text-center">Online</th>
                     <th className="px-4 py-3 text-center">Market</th>
                     <th className="px-4 py-3 text-center"><div>New</div><div>CTV</div></th>
+                    <th className="px-4 py-3 text-center"><div>Cộng</div><div>Đồng</div></th>
                     <th className="px-4 py-3 text-center"><div>Trạng</div><div>thái</div></th>
                     <th className="px-4 py-3 text-center bg-gray-200"><div>Thao</div><div>tác</div></th>
                     </tr>
@@ -344,6 +346,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                                 <td className="px-4 py-2 text-center">{(r.postSocial || 0) + (r.postGroup || 0) + (r.messageNewCust || 0) + (r.friendZalo || 0)}</td>
                                 <td className="px-4 py-2 text-center">{r.marketActivity || 0}</td>
                                 <td className="px-4 py-2 text-center">{r.newCtv || 0}</td>
+                                <td className="px-4 py-2 text-center">{r.communityMembers || 0}</td>
                                 <td className="px-4 py-2 text-center">
                                     <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${r.approvalStatus === 'Pending' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                                     {r.approvalStatus === 'Pending' ? 'Chờ duyệt' : 'Approved'}
@@ -390,6 +393,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                             <td className="px-4 py-3 text-center">{subtotal.postSocial + subtotal.postGroup + subtotal.messageNewCust + subtotal.friendZalo}</td>
                             <td className="px-4 py-3 text-center">{subtotal.marketActivity}</td>
                             <td className="px-4 py-3 text-center">{subtotal.newCtv}</td>
+                            <td className="px-4 py-3 text-center">{subtotal.communityMembers}</td>
                             <td className="px-4 py-3 text-center" colSpan={2}></td>
                         </tr>
                     </tfoot>
