@@ -80,20 +80,20 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
           appFEOL: acc.appFEOL + (r.directAppFEOL || 0),
           loanFEOL: acc.loanFEOL + (r.directLoanFEOL || 0),
           customerCare: acc.customerCare + (r.customerCare || 0),
-          messageNewCust: acc.messageNewCust + (r.messageNewCust || 0),
-          friendZalo: acc.friendZalo + (r.friendZalo || 0),
           postSocial: acc.postSocial + (r.postSocial || 0),
-          postGroup: acc.postGroup + (r.postGroup || 0),
           marketActivity: acc.marketActivity + (r.marketActivity || 0),
           ctvCare: acc.ctvCare + (r.ctvCare || 0),
           newCtv: acc.newCtv + (r.newCtv || 0),
+          adsCost: acc.adsCost + (r.adsCost || 0),
+          liveSessions: acc.liveSessions + (r.liveSessions || 0),
+          videoPosts: acc.videoPosts + (r.videoPosts || 0),
           communityMembers: acc.communityMembers + (r.communityMembers || 0)
       }), { 
           volume: 0, apps: 0, loans: 0, loanXSTU: 0, banca: 0, 
           appCRC: 0, loanCRC: 0, appFEOL: 0, loanFEOL: 0, 
-          customerCare: 0, messageNewCust: 0, friendZalo: 0,
-          postSocial: 0, postGroup: 0, marketActivity: 0,
-          ctvCare: 0, newCtv: 0, communityMembers: 0
+          customerCare: 0, postSocial: 0, marketActivity: 0,
+          ctvCare: 0, newCtv: 0, communityMembers: 0,
+          adsCost: 0, liveSessions: 0, videoPosts: 0
       });
   }, [filteredRecords]);
 
@@ -112,7 +112,7 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
   const volScore = Math.min(40, (subtotal.volume / TARGET_VOLUME) * 40);
   const appScore = Math.min(30, (subtotal.apps / TARGET_APPS) * 30);
   
-  const totalActivity = subtotal.customerCare + subtotal.ctvCare + subtotal.postSocial + subtotal.postGroup + subtotal.messageNewCust + subtotal.friendZalo + subtotal.marketActivity + subtotal.newCtv + subtotal.communityMembers;
+  const totalActivity = subtotal.customerCare + subtotal.ctvCare + subtotal.postSocial + subtotal.marketActivity + subtotal.newCtv + subtotal.communityMembers + subtotal.adsCost + subtotal.liveSessions + subtotal.videoPosts;
   const activityScore = Math.min(30, (totalActivity / TARGET_ACTIVITY) * 30);
   
   const kpiScore = (volScore + appScore + activityScore).toFixed(1);
@@ -319,6 +319,9 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                     <th className="px-4 py-3 text-center">Online</th>
                     <th className="px-4 py-3 text-center">Market</th>
                     <th className="px-4 py-3 text-center"><div>New</div><div>CTV</div></th>
+                    <th className="px-4 py-3 text-center">QC</th>
+                    <th className="px-4 py-3 text-center">Live</th>
+                    <th className="px-4 py-3 text-center">Video</th>
                     <th className="px-4 py-3 text-center"><div>Cộng</div><div>Đồng</div></th>
                     <th className="px-4 py-3 text-center"><div>Trạng</div><div>thái</div></th>
                     <th className="px-4 py-3 text-center bg-gray-200"><div>Thao</div><div>tác</div></th>
@@ -343,9 +346,12 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                                 <td className="px-4 py-2 text-center bg-red-50/30"><span className="text-gray-500">{r.directAppCRC || 0}</span> / <span className="font-bold text-red-700">{r.directLoanCRC || 0}</span></td>
                                 <td className="px-4 py-2 text-center bg-purple-50/30"><span className="text-gray-500">{r.directAppFEOL || 0}</span> / <span className="font-bold text-purple-700">{r.directLoanFEOL || 0}</span></td>
                                 <td className="px-4 py-2 text-center">{(r.customerCare || 0) + (r.ctvCare || 0)}</td>
-                                <td className="px-4 py-2 text-center">{(r.postSocial || 0) + (r.postGroup || 0) + (r.messageNewCust || 0) + (r.friendZalo || 0)}</td>
+                                <td className="px-4 py-2 text-center">{r.postSocial || 0}</td>
                                 <td className="px-4 py-2 text-center">{r.marketActivity || 0}</td>
                                 <td className="px-4 py-2 text-center">{r.newCtv || 0}</td>
+                                <td className="px-4 py-2 text-center text-emerald-700 font-bold bg-emerald-50/50">{r.adsCost || 0}</td>
+                                <td className="px-4 py-2 text-center text-emerald-700 bg-emerald-50/50">{r.liveSessions || 0}</td>
+                                <td className="px-4 py-2 text-center text-emerald-700 bg-emerald-50/50">{r.videoPosts || 0}</td>
                                 <td className="px-4 py-2 text-center">{r.communityMembers || 0}</td>
                                 <td className="px-4 py-2 text-center">
                                     <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${r.approvalStatus === 'Pending' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
@@ -390,9 +396,12 @@ export const DSADetail: React.FC<DSADetailProps> = ({ dsaCode, data, onBack, cur
                             <td className="px-4 py-3 text-center text-red-800">{subtotal.appCRC} / {subtotal.loanCRC}</td>
                             <td className="px-4 py-3 text-center text-purple-800">{subtotal.appFEOL} / {subtotal.loanFEOL}</td>
                             <td className="px-4 py-3 text-center">{subtotal.customerCare + subtotal.ctvCare}</td>
-                            <td className="px-4 py-3 text-center">{subtotal.postSocial + subtotal.postGroup + subtotal.messageNewCust + subtotal.friendZalo}</td>
+                            <td className="px-4 py-3 text-center">{subtotal.postSocial}</td>
                             <td className="px-4 py-3 text-center">{subtotal.marketActivity}</td>
                             <td className="px-4 py-3 text-center">{subtotal.newCtv}</td>
+                            <td className="px-4 py-3 text-center text-emerald-700 bg-emerald-200">{subtotal.adsCost}</td>
+                            <td className="px-4 py-3 text-center text-emerald-700 bg-emerald-200">{subtotal.liveSessions}</td>
+                            <td className="px-4 py-3 text-center text-emerald-700 bg-emerald-200">{subtotal.videoPosts}</td>
                             <td className="px-4 py-3 text-center">{subtotal.communityMembers}</td>
                             <td className="px-4 py-3 text-center" colSpan={2}></td>
                         </tr>

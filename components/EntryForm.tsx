@@ -93,13 +93,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
     onlineApp: 0,
     onlineVolume: 0,
     customerCare: 0,
-    messageNewCust: 0,
-    friendZalo: 0,
     postSocial: 0,
-    postGroup: 0,
     marketActivity: 0,
     ctvCare: 0,
     newCtv: 0,
+    adsCost: 0,
+    liveSessions: 0,
+    videoPosts: 0,
     communityMembers: 0,
     approvalStatus: 'Approved'
   };
@@ -368,46 +368,38 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, currentUs
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
                  <label className="block text-xs font-bold text-amber-800">Chăm sóc KH</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 10-15 KH)</div>
                  <input type="number" name="customerCare" value={formData.customerCare} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">Nhắn tin tìm KH mới</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: &gt;= 30 TIN)</div>
-                 <input type="number" name="messageNewCust" value={formData.messageNewCust} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
-              </div>
-              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">Kết bạn Zalo/FB</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 2 bạn)</div>
-                 <input type="number" name="friendZalo" value={formData.friendZalo} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
-              </div>
-              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
                  <label className="block text-xs font-bold text-amber-800">Đăng bài tìm KH</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 2 bài - Zalo/FB/Tiktok)</div>
                  <input type="number" name="postSocial" value={formData.postSocial} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">Đăng bài hội nhóm</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 1 nhóm)</div>
-                 <input type="number" name="postGroup" value={formData.postGroup} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
-              </div>
-              <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
                  <label className="block text-xs font-bold text-amber-800">Hoạt động thị trường</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 1 lần/ngày)</div>
                  <input type="number" name="marketActivity" value={formData.marketActivity} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
                  <label className="block text-xs font-bold text-amber-800">Gọi/nhắn CTV cũ</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: &gt;= 5 CTV)</div>
                  <input type="number" name="ctvCare" value={formData.ctvCare} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">Tuyển & trao đổi CTV mới</label>
-                 <div className="text-[9px] text-amber-600 mb-1 font-medium">(Mục tiêu: 1-2 CTV)</div>
+                 <label className="block text-xs font-bold text-amber-800">Tuyển & TĐ CTV mới</label>
                  <input type="number" name="newCtv" value={formData.newCtv} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
+              <div className="bg-emerald-50 p-2 rounded border border-emerald-100 shadow-sm">
+                 <label className="block text-xs font-bold text-emerald-800">Số tiền Quảng cáo</label>
+                 <input type="number" name="adsCost" value={formData.adsCost} onChange={handleChange} className="mt-1 block w-full rounded-md border-emerald-200 border p-2 bg-white focus:border-emerald-500 focus:ring-emerald-500" />
+              </div>
+              <div className="bg-emerald-50 p-2 rounded border border-emerald-100 shadow-sm">
+                 <label className="block text-xs font-bold text-emerald-800">Số phiên Live</label>
+                 <input type="number" name="liveSessions" value={formData.liveSessions} onChange={handleChange} className="mt-1 block w-full rounded-md border-emerald-200 border p-2 bg-white focus:border-emerald-500 focus:ring-emerald-500" />
+              </div>
+              <div className="bg-emerald-50 p-2 rounded border border-emerald-100 shadow-sm">
+                 <label className="block text-xs font-bold text-emerald-800">Số bài đăng Video</label>
+                 <input type="number" name="videoPosts" value={formData.videoPosts} onChange={handleChange} className="mt-1 block w-full rounded-md border-emerald-200 border p-2 bg-white focus:border-emerald-500 focus:ring-emerald-500" />
+              </div>
               <div className="bg-amber-50 p-2 rounded border border-amber-100 shadow-sm">
-                 <label className="block text-xs font-bold text-amber-800">Số thành viên trong cộng đồng</label>
+                 <label className="block text-xs font-bold text-amber-800">Số lượng TV C.Đồng</label>
                  <input type="number" name="communityMembers" value={formData.communityMembers} onChange={handleChange} className="mt-1 block w-full rounded-md border-amber-200 border p-2 bg-white focus:border-amber-500 focus:ring-amber-500" />
               </div>
             </div>

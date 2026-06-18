@@ -76,13 +76,14 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
           appCRC: 0,
           loanCRC: 0,
           customerCare: 0,
-          messageNewCust: 0,
-          friendZalo: 0,
           postSocial: 0,
-          postGroup: 0,
           marketActivity: 0,
           ctvCare: 0,
-          newCtv: 0
+          newCtv: 0,
+          communityMembers: 0,
+          adsCost: 0,
+          liveSessions: 0,
+          videoPosts: 0
         };
       }
       
@@ -92,13 +93,14 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
       acc[key].appCRC += (curr.directAppCRC || 0);
       acc[key].loanCRC += (curr.directLoanCRC || 0);
       acc[key].customerCare += (curr.customerCare || 0);
-      acc[key].messageNewCust += (curr.messageNewCust || 0);
-      acc[key].friendZalo += (curr.friendZalo || 0);
       acc[key].postSocial += (curr.postSocial || 0);
-      acc[key].postGroup += (curr.postGroup || 0);
       acc[key].marketActivity += (curr.marketActivity || 0);
       acc[key].ctvCare += (curr.ctvCare || 0);
       acc[key].newCtv += (curr.newCtv || 0);
+      acc[key].communityMembers += (curr.communityMembers || 0);
+      acc[key].adsCost += (curr.adsCost || 0);
+      acc[key].liveSessions += (curr.liveSessions || 0);
+      acc[key].videoPosts += (curr.videoPosts || 0);
       return acc;
     }, {} as Record<string, any>);
 
@@ -106,8 +108,8 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
       if (groupKey === 'reportDate') return a.key.localeCompare(b.key); 
       if (activeTab === 'financial') return b.totalVolume - a.totalVolume;
       if (activeTab === 'apps') return (b.appPL + b.loanCRC) - (a.appPL + a.loanCRC);
-      const aActivity = a.customerCare + a.ctvCare + a.postSocial + a.postGroup + a.marketActivity;
-      const bActivity = b.customerCare + b.ctvCare + b.postSocial + b.postGroup + b.marketActivity;
+      const aActivity = a.customerCare + a.ctvCare + a.postSocial + a.marketActivity + a.newCtv + (a.communityMembers || 0) + (a.adsCost || 0) + (a.liveSessions || 0) + (a.videoPosts || 0);
+      const bActivity = b.customerCare + b.ctvCare + b.postSocial + b.marketActivity + b.newCtv + (b.communityMembers || 0) + (b.adsCost || 0) + (b.liveSessions || 0) + (b.videoPosts || 0);
       return bActivity - aActivity;
     });
 
@@ -202,7 +204,7 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
           if (activeTab === 'apps') return Math.max(d.appPL, d.appCRC, d.loanCRC);
           return Math.max(
             (d.customerCare || 0) + (d.ctvCare || 0),
-            (d.postSocial || 0) + (d.postGroup || 0) + (d.messageNewCust || 0) + (d.friendZalo || 0),
+            (d.postSocial || 0),
             (d.marketActivity || 0)
           ); 
         }), 1);
@@ -302,7 +304,7 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
     <div className="h-full flex items-end space-x-8 md:space-x-12 min-w-max px-4 pt-10 pb-2">
         {chartData.map((item: any) => {
             const care = (item.customerCare || 0) + (item.ctvCare || 0);
-            const online = (item.postSocial || 0) + (item.postGroup || 0) + (item.messageNewCust || 0) + (item.friendZalo || 0);
+            const online = (item.postSocial || 0);
             const market = (item.marketActivity || 0);
             
             return (
@@ -361,8 +363,8 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
                            <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{item.customerCare + item.ctvCare} Care</span>
                        </div>
                        <div className="flex items-center">
-                           <div className="h-4 rounded-r-md transition-all duration-500 bg-blue-500" style={{ width: `${Math.max(((item.postSocial + item.postGroup + item.messageNewCust + item.friendZalo) / maxValue) * 100, 2)}%` }}></div>
-                           <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{item.postSocial + item.postGroup + item.messageNewCust + item.friendZalo} Online</span>
+                           <div className="h-4 rounded-r-md transition-all duration-500 bg-blue-500" style={{ width: `${Math.max(((item.postSocial) / maxValue) * 100, 2)}%` }}></div>
+                           <span className="ml-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">{item.postSocial} Online</span>
                        </div>
                        <div className="flex items-center">
                            <div className="h-4 rounded-r-md transition-all duration-500 bg-orange-500" style={{ width: `${Math.max((item.marketActivity / maxValue) * 100, 2)}%` }}></div>
@@ -382,7 +384,7 @@ const DashboardChartsComponent: React.FC<DashboardChartsProps> = ({ data, global
       const getMetric = (item: any) => {
           if (activeTab === 'financial') return item.totalVolume;
           if (activeTab === 'apps') return item.appPL;
-          return (item.customerCare || 0) + (item.ctvCare || 0) + (item.postSocial || 0) + (item.postGroup || 0) + (item.messageNewCust || 0) + (item.friendZalo || 0) + (item.marketActivity || 0);
+          return (item.customerCare || 0) + (item.ctvCare || 0) + (item.postSocial || 0) + (item.marketActivity || 0) + (item.newCtv || 0) + (item.communityMembers || 0) + (item.adsCost || 0) + (item.liveSessions || 0) + (item.videoPosts || 0);
       };
       
       const total = chartData.reduce((sum, item: any) => sum + getMetric(item), 0);

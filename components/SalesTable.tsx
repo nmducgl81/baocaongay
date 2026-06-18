@@ -54,13 +54,13 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directRol: true,
         appSur: true, 
         customerCare: true,
-        messageNewCust: true,
-        friendZalo: true,
         postSocial: true,
-        postGroup: true,
         marketActivity: true,
         ctvCare: true,
         newCtv: true,
+        adsCost: true,
+        liveSessions: true,
+        videoPosts: true,
         communityMembers: true
   });
 
@@ -153,8 +153,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                 directVolume: 0, directBanca: 0, 
                 directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
                 appSur: 0, 
-                customerCare: 0, messageNewCust: 0, friendZalo: 0, postSocial: 0,
-                postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0, communityMembers: 0,
+                customerCare: 0, postSocial: 0, marketActivity: 0, ctvCare: 0, newCtv: 0,
+                adsCost: 0, liveSessions: 0, videoPosts: 0, communityMembers: 0,
                 _childIds: [],
                 missingCount: 0
             };
@@ -177,13 +177,13 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         g.directVolumeFEOL += r.directVolumeFEOL;
         g.appSur += (r.appSur || 0);
         g.customerCare += (r.customerCare || 0);
-        g.messageNewCust += (r.messageNewCust || 0);
-        g.friendZalo += (r.friendZalo || 0);
         g.postSocial += (r.postSocial || 0);
-        g.postGroup += (r.postGroup || 0);
         g.marketActivity += (r.marketActivity || 0);
         g.ctvCare += (r.ctvCare || 0);
         g.newCtv += (r.newCtv || 0);
+        g.adsCost += (r.adsCost || 0);
+        g.liveSessions += (r.liveSessions || 0);
+        g.videoPosts += (r.videoPosts || 0);
         g.communityMembers += (r.communityMembers || 0);
         if (!r.id.startsWith('virt-')) {
             g._childIds.push(r.id);
@@ -221,21 +221,21 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         directVolumeFEOL: acc.directVolumeFEOL + (r.directVolumeFEOL || 0),
         appSur: acc.appSur + (r.appSur || 0),
         customerCare: acc.customerCare + (r.customerCare || 0),
-        messageNewCust: acc.messageNewCust + (r.messageNewCust || 0),
-        friendZalo: acc.friendZalo + (r.friendZalo || 0),
         postSocial: acc.postSocial + (r.postSocial || 0),
-        postGroup: acc.postGroup + (r.postGroup || 0),
         marketActivity: acc.marketActivity + (r.marketActivity || 0),
         ctvCare: acc.ctvCare + (r.ctvCare || 0),
         newCtv: acc.newCtv + (r.newCtv || 0),
+        adsCost: acc.adsCost + (r.adsCost || 0),
+        liveSessions: acc.liveSessions + (r.liveSessions || 0),
+        videoPosts: acc.videoPosts + (r.videoPosts || 0),
         communityMembers: acc.communityMembers + (r.communityMembers || 0),
     }), {
         directApp: 0, directLoan: 0, directLoanXSTU: 0, directAppCRC: 0, directLoanCRC: 0,
         directVolume: 0, directBanca: 0,
         directAppFEOL: 0, directLoanFEOL: 0, directVolumeFEOL: 0,
         appSur: 0,
-        customerCare: 0, messageNewCust: 0, friendZalo: 0, postSocial: 0,
-        postGroup: 0, marketActivity: 0, ctvCare: 0, newCtv: 0, communityMembers: 0
+        customerCare: 0, postSocial: 0, marketActivity: 0, ctvCare: 0, newCtv: 0,
+        adsCost: 0, liveSessions: 0, videoPosts: 0, communityMembers: 0
     });
   }, [displayRecords, isMissingView]);
 
@@ -259,14 +259,14 @@ export const SalesTable: React.FC<SalesTableProps> = ({
             'Banca': record.directBanca,
             'Rol (%)': rolDisplay,
             'Chăm sóc KH': record.customerCare,
-            'Nhắn tin tìm KH': record.messageNewCust,
-            'Kết bạn Zalo/FB': record.friendZalo,
             'Đăng bài tìm KH': record.postSocial,
-            'Đăng bài hội nhóm': record.postGroup,
             'Hoạt động thị trường': record.marketActivity,
             'Gọi/nhắn CTV cũ': record.ctvCare,
-            'Tuyển & trao đổi CTV mới': record.newCtv,
-            'Số lượng thành viên cộng đồng': record.communityMembers || 0
+            'Tuyển & TĐ CTV mới': record.newCtv,
+            'Số tiền Quảng cáo': record.adsCost || 0,
+            'Số phiên Live': record.liveSessions || 0,
+            'Số bài đăng Video': record.videoPosts || 0,
+            'Số lượng TV C.Đồng': record.communityMembers || 0
         };
     });
 
@@ -392,13 +392,13 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                     <div className="mb-3">
                                         <div className="text-xs font-bold text-amber-600 uppercase mb-2 px-2">Hoạt động</div>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.customerCare} onChange={() => toggleColumn('customerCare')} className="mr-3"/><span>Chăm sóc KH</span></label>
-                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.messageNewCust} onChange={() => toggleColumn('messageNewCust')} className="mr-3"/><span>Nhắn tin tìm KH</span></label>
-                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.friendZalo} onChange={() => toggleColumn('friendZalo')} className="mr-3"/><span>Kết bạn Zalo/FB</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.postSocial} onChange={() => toggleColumn('postSocial')} className="mr-3"/><span>Đăng bài tìm KH</span></label>
-                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.postGroup} onChange={() => toggleColumn('postGroup')} className="mr-3"/><span>Đăng bài hội nhóm</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.marketActivity} onChange={() => toggleColumn('marketActivity')} className="mr-3"/><span>Hoạt động thị trường</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.ctvCare} onChange={() => toggleColumn('ctvCare')} className="mr-3"/><span>Gọi/nhắn CTV cũ</span></label>
-                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.newCtv} onChange={() => toggleColumn('newCtv')} className="mr-3"/><span>Tuyển & trao đổi CTV mới</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.newCtv} onChange={() => toggleColumn('newCtv')} className="mr-3"/><span>Tuyển & TĐ CTV mới</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-emerald-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.adsCost} onChange={() => toggleColumn('adsCost')} className="mr-3 accent-emerald-600"/><span className="text-emerald-700 font-medium">Số tiền Quảng cáo</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-emerald-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.liveSessions} onChange={() => toggleColumn('liveSessions')} className="mr-3 accent-emerald-600"/><span className="text-emerald-700 font-medium">Số phiên Live</span></label>
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-emerald-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.videoPosts} onChange={() => toggleColumn('videoPosts')} className="mr-3 accent-emerald-600"/><span className="text-emerald-700 font-medium">Số bài đăng Video</span></label>
                                         <label className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" checked={visibleColumns.communityMembers} onChange={() => toggleColumn('communityMembers')} className="mr-3"/><span>TV Cộng đồng</span></label>
                                     </div>
                                 </div>
@@ -469,30 +469,14 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                                 <div>KH</div>
                             </th>
                         )}
-                        {visibleColumns.messageNewCust && (
-                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
-                                <div>Nhắn tin</div>
-                                <div>tìm KH</div>
-                            </th>
-                        )}
-                        {visibleColumns.friendZalo && (
-                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[70px]">
-                                <div>Kết bạn</div>
-                                <div>Zalo/FB</div>
-                            </th>
-                        )}
+
                         {visibleColumns.postSocial && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
                                 <div>Đăng bài</div>
                                 <div>tìm KH</div>
                             </th>
                         )}
-                        {visibleColumns.postGroup && (
-                            <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[70px]">
-                                <div>Đăng bài</div>
-                                <div>hội nhóm</div>
-                            </th>
-                        )}
+
                         {visibleColumns.marketActivity && (
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
                                 <div>Hoạt động</div>
@@ -509,6 +493,24 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                             <th className="border border-gray-300 p-2 bg-amber-50 text-amber-900 min-w-[80px]">
                                 <div>Tuyển &</div>
                                 <div>TĐ CTV mới</div>
+                            </th>
+                        )}
+                        {visibleColumns.adsCost && (
+                            <th className="border border-gray-300 p-2 bg-emerald-50 text-emerald-900 min-w-[90px]">
+                                <div>Số tiền</div>
+                                <div>Quảng cáo</div>
+                            </th>
+                        )}
+                        {visibleColumns.liveSessions && (
+                            <th className="border border-gray-300 p-2 bg-emerald-50 text-emerald-900 min-w-[80px]">
+                                <div>Số phiên</div>
+                                <div>Live</div>
+                            </th>
+                        )}
+                        {visibleColumns.videoPosts && (
+                            <th className="border border-gray-300 p-2 bg-emerald-50 text-emerald-900 min-w-[80px]">
+                                <div>Số bài đăng</div>
+                                <div>Video</div>
                             </th>
                         )}
                         {visibleColumns.communityMembers && (
@@ -575,13 +577,13 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                     </td>}
                     
                     {visibleColumns.customerCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.customerCare}</td>}
-                    {visibleColumns.messageNewCust && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.messageNewCust}</td>}
-                    {visibleColumns.friendZalo && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.friendZalo}</td>}
                     {visibleColumns.postSocial && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.postSocial}</td>}
-                    {visibleColumns.postGroup && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.postGroup}</td>}
                     {visibleColumns.marketActivity && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.marketActivity}</td>}
                     {visibleColumns.ctvCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.ctvCare}</td>}
                     {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.newCtv}</td>}
+                    {visibleColumns.adsCost && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums text-emerald-700 bg-emerald-50/50">{totalSummary.adsCost}</td>}
+                    {visibleColumns.liveSessions && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums text-emerald-700 bg-emerald-50/50">{totalSummary.liveSessions}</td>}
+                    {visibleColumns.videoPosts && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums text-emerald-700 bg-emerald-50/50">{totalSummary.videoPosts}</td>}
                     {visibleColumns.communityMembers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{totalSummary.communityMembers}</td>}
                 </tr>
               )}
@@ -684,13 +686,13 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       {visibleColumns.directRol && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center font-bold text-blue-600 tabular-nums">{rolDisplay}</td>}
                       
                       {visibleColumns.customerCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.customerCare}</td>}
-                      {visibleColumns.messageNewCust && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.messageNewCust}</td>}
-                      {visibleColumns.friendZalo && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.friendZalo}</td>}
                       {visibleColumns.postSocial && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.postSocial}</td>}
-                      {visibleColumns.postGroup && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.postGroup}</td>}
                       {visibleColumns.marketActivity && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.marketActivity}</td>}
                       {visibleColumns.ctvCare && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.ctvCare}</td>}
                       {visibleColumns.newCtv && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.newCtv}</td>}
+                      {visibleColumns.adsCost && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums text-emerald-700 bg-emerald-50/50">{row.adsCost || 0}</td>}
+                      {visibleColumns.liveSessions && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums text-emerald-700 bg-emerald-50/50">{row.liveSessions || 0}</td>}
+                      {visibleColumns.videoPosts && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums text-emerald-700 bg-emerald-50/50">{row.videoPosts || 0}</td>}
                       {visibleColumns.communityMembers && <td className="border border-gray-300 dark:border-gray-600 p-2 text-center tabular-nums">{row.communityMembers || 0}</td>}
                     </tr>
                   );

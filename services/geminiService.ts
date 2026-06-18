@@ -22,9 +22,14 @@ export const createChatSession = async (data: SalesRecord[]) => {
       app: d.directApp,
       loan: d.directLoan,
       activity: {
-        care: d.customerCare + d.ctvCare,
-        online: d.postSocial + d.postGroup + d.messageNewCust + d.friendZalo,
-        market: d.marketActivity
+        care: (d.customerCare || 0) + (d.ctvCare || 0),
+        online: (d.postSocial || 0),
+        market: (d.marketActivity || 0),
+        newCtv: (d.newCtv || 0),
+        ads: (d.adsCost || 0),
+        live: (d.liveSessions || 0),
+        video: (d.videoPosts || 0),
+        community: (d.communityMembers || 0)
       }
     })), null, 2);
 

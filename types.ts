@@ -43,16 +43,16 @@ export interface SalesRecord {
   onlineApp: number;
   onlineVolume: number;
 
-  // Orange Section: Activity (Updated per user request)
-  customerCare: number; // Chăm sóc KH (10-15 KH)
-  messageNewCust: number; // Nhắn tin tìm KH mới (>= 30 TIN)
-  friendZalo: number; // Kết bạn Zalo/FB (2 bạn)
-  postSocial: number; // Đăng bài tìm KH qua Zalo/FB/Tiktok (2 bài)
-  postGroup: number; // Đăng bài hội nhóm (1 nhóm)
-  marketActivity: number; // Hoạt động thị trường (1 lần/ngày)
-  ctvCare: number; // Gọi/nhắn CTV hiện hữu (>= 5 CTV)
-  newCtv: number; // Tuyển & trao đổi CTV mới (1 - 2 CTV)
-  communityMembers?: number; // Số thành viên trong cộng đồng
+  // Orange Section: Activity (Updated to match target columns)
+  customerCare: number; // Chăm sóc KH
+  postSocial: number; // Đăng bài tìm KH
+  marketActivity: number; // Hoạt động thị trường
+  ctvCare: number; // Gọi/nhắn CTV cũ
+  newCtv: number; // Tuyển & trao đổi CTV mới
+  adsCost?: number; // Số tiền Quảng cáo
+  liveSessions?: number; // Số phiên Live
+  videoPosts?: number; // Số bài đăng Video
+  communityMembers?: number; // Số lượng TV C.Đồng
 }
 
 export interface DashboardStats {

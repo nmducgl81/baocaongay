@@ -111,9 +111,10 @@ export const useSalesFilter = ({
                                 directVolume: 0, directBanca: 0, directRol: '0.0%', 
                                 appSur: 0,
                                 onlineApp: 0, onlineVolume: 0, 
-                                customerCare: 0, messageNewCust: 0, friendZalo: 0,
-                                postSocial: 0, postGroup: 0, marketActivity: 0,
-                                ctvCare: 0, newCtv: 0, communityMembers: 0
+                                customerCare: 0, postSocial: 0, marketActivity: 0,
+                                ctvCare: 0, newCtv: 0,
+                                adsCost: 0, liveSessions: 0, videoPosts: 0,
+                                communityMembers: 0
                             });
                         }
                     }

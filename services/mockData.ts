@@ -65,13 +65,13 @@ export const generateMockData = (): SalesRecord[] => {
       onlineApp: 0,
       onlineVolume: 0,
       customerCare: 12,
-      messageNewCust: 30,
-      friendZalo: 2,
       postSocial: 2,
-      postGroup: 1,
       marketActivity: 1,
       ctvCare: 5,
-      newCtv: 1
+      newCtv: 1,
+      adsCost: 0,
+      liveSessions: 0,
+      videoPosts: 0
     },
     {
       id: '2',
@@ -97,13 +97,13 @@ export const generateMockData = (): SalesRecord[] => {
       onlineApp: 0,
       onlineVolume: 0,
       customerCare: 0,
-      messageNewCust: 0,
-      friendZalo: 0,
       postSocial: 0,
-      postGroup: 0,
       marketActivity: 0,
       ctvCare: 0,
       newCtv: 0,
+      adsCost: 0,
+      liveSessions: 0,
+      videoPosts: 0,
       communityMembers: 0
     },
     {
@@ -130,13 +130,13 @@ export const generateMockData = (): SalesRecord[] => {
       onlineApp: 0,
       onlineVolume: 2,
       customerCare: 15,
-      messageNewCust: 35,
-      friendZalo: 3,
       postSocial: 2,
-      postGroup: 1,
       marketActivity: 1,
       ctvCare: 6,
       newCtv: 0,
+      adsCost: 0,
+      liveSessions: 0,
+      videoPosts: 0,
       communityMembers: 5
     },
     {
@@ -163,13 +163,13 @@ export const generateMockData = (): SalesRecord[] => {
       onlineApp: 0,
       onlineVolume: 0,
       customerCare: 20,
-      messageNewCust: 40,
-      friendZalo: 5,
       postSocial: 3,
-      postGroup: 2,
       marketActivity: 1,
       ctvCare: 10,
       newCtv: 2,
+      adsCost: 0,
+      liveSessions: 0,
+      videoPosts: 0,
       communityMembers: 20
     },
     {
@@ -196,13 +196,13 @@ export const generateMockData = (): SalesRecord[] => {
       onlineApp: 1,
       onlineVolume: 0,
       customerCare: 10,
-      messageNewCust: 30,
-      friendZalo: 2,
       postSocial: 2,
-      postGroup: 1,
       marketActivity: 1,
       ctvCare: 5,
-      newCtv: 1
+      newCtv: 1,
+      adsCost: 0,
+      liveSessions: 0,
+      videoPosts: 0
     }
   ];
 };
